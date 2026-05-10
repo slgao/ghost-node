@@ -1,0 +1,35 @@
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - govet        # go vet checks
+    - errcheck     # unchecked errors
+    - staticcheck  # static analysis
+    - unused       # unused code
+    - gosimple     # simplification suggestions
+    - ineffassign  # ineffectual assignments
+    - typecheck    # type checking (compilation)
+
+linters-settings:
+  errcheck:
+    # Don't require checking errors on Close() calls and fmt.Print*
+    ignore: "github.com/go-redis/redis.*:.*,io:Close,fmt:.*"
+    exclude-functions:
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+      - (io.Closer).Close
+
+issues:
+  exclude-rules:
+    # Ignore unchecked errors in test helpers and deferred closes
+    - linters: [errcheck]
+      text: "defer"
+    # Ignore unused in generated proto stubs
+    - path: "internal/grpc/proto"
+      linters: [unused, staticcheck]
+  # Show all issues, don't limit
+  max-issues-per-linter: 0
+  max-same-issues: 0
