@@ -1,0 +1,223 @@
+# ─── Shared network ───────────────────────────────────────────────────────────
+networks:
+  vpn_net:
+    driver: bridge
+
+# ─── Named volumes ────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
+  prometheus_data:
+
+# ─── Services ─────────────────────────────────────────────────────────────────
+services:
+
+  # ── Proto code-gen (one-shot helper) ──────────────────────────────────────
+  proto-gen:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "mkdir -p internal/grpc/proto &&
+             protoc --go_out=internal/grpc/proto --go_opt=paths=source_relative
+                    --go-grpc_out=internal/grpc/proto --go-grpc_opt=paths=source_relative
+                    api/proto/*.proto &&
+             echo 'proto gen done'"
+    profiles: ["tools"]
+
+  # ── Lint (one-shot) ────────────────────────────────────────────────────────
+  lint:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2 &&
+             golangci-lint run ./..."
+    profiles: ["tools"]
+
+  # ── Test (one-shot) ────────────────────────────────────────────────────────
+  test:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_USER=vpnplatform
+      - DATABASE_PASSWORD=changeme_dev
+      - DATABASE_DBNAME=vpnplatform
+      - REDIS_HOST=redis
+    command: go test -race -count=1 ./...
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles: ["tools"]
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vpnplatform
+      POSTGRES_PASSWORD: changeme_dev
+      POSTGRES_DB: vpnplatform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"    # 5432 may be in use locally; access via localhost:5433
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vpnplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vpn_net
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - vpn_net
+
+  # ── Control Plane (hot-reload) ─────────────────────────────────────────────
+  control-plane:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.dev
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: air -c deployments/docker/air.control-plane.toml
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - SERVER_MODE=debug
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=vpnplatform
+      - DATABASE_PASSWORD=changeme_dev
+      - DATABASE_DBNAME=vpnplatform
+      - DATABASE_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=dev_secret_change_in_production
+      - JWT_ACCESS_TOKEN_TTL=15m
+      - JWT_REFRESH_TOKEN_TTL=168h
+      - GRPC_HOST=0.0.0.0
+      - GRPC_PORT=9090
+    ports:
+      - "8080:8080"   # REST API
+      - "9090:9090"   # gRPC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vpn_net
+
+  # ── Node Agent (hot-reload) ────────────────────────────────────────────────
+  node-agent:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.dev
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: air -c deployments/docker/air.node-agent.toml
+    environment:
+      - AGENT_CONTROL_PLANE_ADDR=control-plane:9090
+      - AGENT_NODE_ID=
+      - AGENT_HEARTBEAT_INTERVAL=30s
+      - AGENT_CONFIG_POLL_INTERVAL=60s
+    depends_on:
+      - control-plane
+    networks:
+      - vpn_net
+
+  # ── Prometheus ─────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    restart: unless-stopped
+    volumes:
+      - ./deployments/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "9092:9090"
+    networks:
+      - vpn_net
+
+  # ── Xray test server (VLESS+WS, Docker-internal) ─────────────────────────
+  xray-server:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.xray
+    command: ["/etc/xray/config.json"]
+    volumes:
+      - ./configs/xray-local-server.json:/etc/xray/config.json:ro
+    ports:
+      - "10000:10000"
+    networks:
+      - vpn_net
+    profiles: ["tunnel-test"]
+
+  # ── Xray test client — exposes SOCKS5 :10808 and HTTP proxy :10809 ────────
+  xray-client:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.xray
+    command: ["/etc/xray/config.json"]
+    volumes:
+      - ./configs/xray-local-client.json:/etc/xray/config.json:ro
+    ports:
+      - "10808:10808"   # SOCKS5 — use in client apps or curl
+      - "10809:10809"   # HTTP proxy
+    depends_on:
+      - xray-server
+    networks:
+      - vpn_net
+    profiles: ["tunnel-test"]
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployments/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - vpn_net

@@ -1,0 +1,142 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { authAPI, nodesAPI, type Node, type User } from "@/api/client";
+
+interface VPNState {
+  // Auth
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+
+  // Nodes
+  nodes: Node[];
+  selectedNode: Node | null;
+
+  // Connection
+  isConnected: boolean;
+  isConnecting: boolean;
+  connectedNodeId: string | null;
+  activeTransport: string | null;
+  bytesIn: number;
+  bytesOut: number;
+
+  // Actions
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  fetchNodes: () => Promise<void>;
+  selectNode: (node: Node) => void;
+  connect: (nodeId: string) => Promise<void>;
+  disconnect: () => void;
+}
+
+export const useVPNStore = create<VPNState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      nodes: [],
+      selectedNode: null,
+      isConnected: false,
+      isConnecting: false,
+      connectedNodeId: null,
+      activeTransport: null,
+      bytesIn: 0,
+      bytesOut: 0,
+
+      login: async (email, password) => {
+        const { data } = await authAPI.login(email, password);
+        const { access_token, refresh_token } = data.tokens;
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+
+        const meResp = await authAPI.me();
+        set({
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          isAuthenticated: true,
+          user: {
+            id: meResp.data.user_id,
+            email: meResp.data.email,
+            role: meResp.data.role,
+            is_active: true,
+            created_at: "",
+          },
+        });
+      },
+
+      register: async (email, password) => {
+        const { data } = await authAPI.register(email, password);
+        const { access_token, refresh_token } = data.tokens;
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+        set({
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          isAuthenticated: true,
+          user: data.user,
+        });
+      },
+
+      logout: async () => {
+        const rt = get().refreshToken;
+        if (rt) await authAPI.logout(rt).catch(() => null);
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isConnected: false,
+          connectedNodeId: null,
+        });
+      },
+
+      fetchNodes: async () => {
+        const { data } = await nodesAPI.list();
+        set({ nodes: data.nodes });
+      },
+
+      selectNode: (node) => set({ selectedNode: node }),
+
+      connect: async (nodeId) => {
+        set({ isConnecting: true });
+        try {
+          const { data } = await nodesAPI.connect(nodeId);
+          set({
+            isConnected: true,
+            isConnecting: false,
+            connectedNodeId: nodeId,
+            activeTransport: data.profile.type,
+          });
+        } catch (err) {
+          set({ isConnecting: false });
+          throw err;
+        }
+      },
+
+      disconnect: () => {
+        set({
+          isConnected: false,
+          connectedNodeId: null,
+          activeTransport: null,
+          bytesIn: 0,
+          bytesOut: 0,
+        });
+      },
+    }),
+    {
+      name: "vpn-store",
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+        user: state.user,
+      }),
+    }
+  )
+);

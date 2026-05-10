@@ -1,0 +1,2 @@
+- [VPN Platform Project](project_vpn_platform.md) — Go censorship-resistant VPN: architecture, module path, ports, and Phase 1 status
+- [VPN dev environment uses Docker](feedback_vpn_docker.md) — Go toolchain lives in Docker; never run go commands directly on the host

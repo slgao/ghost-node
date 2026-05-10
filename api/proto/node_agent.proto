@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package vpnplatform.agent.v1;
+
+option go_package = "github.com/vpnplatform/core/internal/grpc/proto";
+
+import "google/protobuf/timestamp.proto";
+
+// ─── Node Agent Service ────────────────────────────────────────────────────
+// Control plane  ←→  node agent communication over mTLS gRPC.
+
+service NodeAgentService {
+  // RegisterNode is called once by a new node-agent to obtain its ID.
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+
+  // Heartbeat is sent every 30 s by the agent with current metrics.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // GetConfig retrieves the latest transport configuration for this node.
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+
+  // ReportMetrics streams detailed bandwidth and connection statistics.
+  rpc ReportMetrics(stream MetricsEvent) returns (MetricsAck);
+}
+
+// ─── RegisterNode ──────────────────────────────────────────────────────────
+
+message RegisterNodeRequest {
+  string hostname        = 1;
+  string address         = 2;
+  string region          = 3;
+  string country         = 4;
+  string agent_version   = 5;
+  repeated string supported_transports = 6;
+}
+
+message RegisterNodeResponse {
+  string node_id = 1;   // UUID assigned by the control plane
+  bool   success = 2;
+  string message = 3;
+}
+
+// ─── Heartbeat ─────────────────────────────────────────────────────────────
+
+message HeartbeatRequest {
+  string node_id        = 1;
+  double cpu_usage      = 2;   // 0–100 %
+  double mem_usage      = 3;   // 0–100 %
+  int64  bandwidth_in   = 4;   // cumulative bytes
+  int64  bandwidth_out  = 5;
+  int32  active_conns   = 6;
+  string agent_version  = 7;
+  repeated TransportHealth transport_health = 8;
+}
+
+message TransportHealth {
+  string transport  = 1;
+  string status     = 2;   // running | stopped | error
+  int64  latency_ms = 3;
+}
+
+message HeartbeatResponse {
+  bool   config_changed = 1;   // true → agent should call GetConfig
+  string message        = 2;
+}
+
+// ─── GetConfig ─────────────────────────────────────────────────────────────
+
+message GetConfigRequest {
+  string node_id = 1;
+}
+
+message GetConfigResponse {
+  repeated TransportConfig configs = 1;
+}
+
+message TransportConfig {
+  string transport_type = 1;   // xray | hysteria2 | wireguard
+  int32  port           = 2;
+  bytes  config_json    = 3;   // JSON blob; agent writes to disk
+  bool   enabled        = 4;
+}
+
+// ─── Metrics ───────────────────────────────────────────────────────────────
+
+message MetricsEvent {
+  string                    node_id    = 1;
+  google.protobuf.Timestamp ts         = 2;
+  int64                     bytes_in   = 3;
+  int64                     bytes_out  = 4;
+  int32                     active_conns = 5;
+  string                    transport  = 6;
+}
+
+message MetricsAck {
+  bool received = 1;
+}

@@ -1,0 +1,20 @@
+agent:
+  node_id: ""                               # populated by registration
+  control_plane_addr: "control-plane:9090"
+  heartbeat_interval: "30s"
+  config_poll_interval: "60s"
+  cert_file: ""
+  key_file: ""
+  ca_file: ""
+
+transport:
+  xray_bin: "/usr/local/bin/xray"
+  xray_config_dir: "/etc/xray"
+  hysteria2_bin: "/usr/local/bin/hysteria"
+  hysteria2_config_dir: "/etc/hysteria"
+  wireguard_bin: "/usr/bin/wg"
+  wireguard_config_dir: "/etc/wireguard"
+
+observability:
+  log_level: "info"
+  metrics_port: 9100

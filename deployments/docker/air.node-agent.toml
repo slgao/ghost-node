@@ -1,0 +1,13 @@
+# Air hot-reload config for node-agent
+root = "."
+tmp_dir = ".air-na"
+
+[build]
+  cmd = "go build -o .air-na/node-agent ./cmd/node-agent"
+  bin = ".air-na/node-agent"
+  include_ext = ["go", "yaml"]
+  exclude_dir = ["deployments", "web", "docs", ".git"]
+  delay = 500
+
+[log]
+  time = true

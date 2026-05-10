@@ -1,0 +1,19 @@
+# Air hot-reload config for control-plane
+root = "."
+tmp_dir = ".air-cp"
+
+[build]
+  cmd = "go build -o .air-cp/control-plane ./cmd/control-plane"
+  bin = ".air-cp/control-plane"
+  include_ext = ["go", "yaml"]
+  exclude_dir = ["deployments", "web", "docs", ".git"]
+  delay = 500
+
+[log]
+  time = true
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"

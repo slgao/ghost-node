@@ -1,0 +1,6 @@
+(undo-tree-save-format-version . 1)
+"1216f62f3ef57fef03ddb8134a1e43d325f87847"
+[nil nil nil nil (27136 29717 104565 0) 0 nil]
+([nil nil ((1 . 7626) (t . -1)) nil (27136 29717 104559 0) 0 nil])
+([nil current ((7626 . 7627)) nil (27136 29717 104534 0) 0 nil])
+nil

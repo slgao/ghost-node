@@ -1,0 +1,39 @@
+{
+  "_comment": "Local test client — connects to xray-server via VLESS+WS, exposes SOCKS5 on :10808",
+  "log": { "loglevel": "info" },
+  "inbounds": [
+    {
+      "tag":      "socks5-in",
+      "listen":   "0.0.0.0",
+      "port":     10808,
+      "protocol": "socks",
+      "settings": { "auth": "noauth", "udp": true }
+    },
+    {
+      "tag":      "http-in",
+      "listen":   "0.0.0.0",
+      "port":     10809,
+      "protocol": "http"
+    }
+  ],
+  "outbounds": [
+    {
+      "tag":      "vless-out",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "xray-server",
+            "port":    10000,
+            "users":   [{ "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479", "encryption": "none" }]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network":    "ws",
+        "wsSettings": { "path": "/ws" }
+      }
+    },
+    { "tag": "direct", "protocol": "freedom" }
+  ]
+}

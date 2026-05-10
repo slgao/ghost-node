@@ -1,0 +1,97 @@
+{
+  "_comment": [
+    "VLESS + WebSocket + TLS — CDN-compatible fallback.",
+    "Works behind Cloudflare CDN so the server IP is hidden.",
+    "Requires a domain name with a valid TLS certificate.",
+    "Replace: YOUR_UUID, YOUR_DOMAIN, cert/key paths.",
+    "Put this behind nginx for certificate termination, or",
+    "use --with-tls-cert in Xray directly as shown here."
+  ],
+  "log": {
+    "loglevel": "warning",
+    "access": "/var/log/xray/access.log",
+    "error":  "/var/log/xray/error.log"
+  },
+  "inbounds": [
+    {
+      "tag": "vless-ws-tls",
+      "listen": "0.0.0.0",
+      "port": 8443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "YOUR_UUID_HERE",
+            "email": "user@vpnplatform"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "YOUR_DOMAIN_HERE",
+          "certificates": [
+            {
+              "certificateFile": "/etc/letsencrypt/live/YOUR_DOMAIN_HERE/fullchain.pem",
+              "keyFile":         "/etc/letsencrypt/live/YOUR_DOMAIN_HERE/privkey.pem"
+            }
+          ],
+          "minVersion": "1.2",
+          "fingerprint": "chrome"
+        },
+        "wsSettings": {
+          "path": "/ws",
+          "headers": { "Host": "YOUR_DOMAIN_HERE" }
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
+    },
+    {
+      "tag": "vless-grpc-tls",
+      "listen": "0.0.0.0",
+      "port": 9443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          { "id": "YOUR_UUID_HERE" }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "grpc",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "YOUR_DOMAIN_HERE",
+          "certificates": [
+            {
+              "certificateFile": "/etc/letsencrypt/live/YOUR_DOMAIN_HERE/fullchain.pem",
+              "keyFile":         "/etc/letsencrypt/live/YOUR_DOMAIN_HERE/privkey.pem"
+            }
+          ],
+          "fingerprint": "chrome"
+        },
+        "grpcSettings": {
+          "serviceName": "vpnservice",
+          "health_check_timeout": 20
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    { "protocol": "freedom",   "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block"  }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      { "type": "field", "ip":     ["geoip:private"], "outboundTag": "block"  },
+      { "type": "field", "ip":     ["geoip:cn"],       "outboundTag": "direct" },
+      { "type": "field", "domain": ["geosite:cn"],     "outboundTag": "direct" }
+    ]
+  }
+}

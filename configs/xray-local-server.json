@@ -1,0 +1,25 @@
+{
+  "_comment": "Local test server — VLESS over WebSocket, no TLS (Docker internal network only)",
+  "log": { "loglevel": "info" },
+  "inbounds": [
+    {
+      "tag": "vless-ws",
+      "listen": "0.0.0.0",
+      "port": 10000,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          { "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479" }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": { "path": "/ws" }
+      }
+    }
+  ],
+  "outbounds": [
+    { "tag": "direct", "protocol": "freedom" }
+  ]
+}

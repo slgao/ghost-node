@@ -1,0 +1,42 @@
+# Binaries
+bin/
+*.exe
+
+# Air hot-reload build dirs
+.air-cp/
+.air-na/
+
+# Claude Code
+.claude/
+
+# Test output
+coverage.out
+coverage.html
+
+# Env
+.env
+.env.local
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# macOS
+.DS_Store
+
+# Docker volumes (if bind-mounted)
+data/
+
+# Generated proto Go files
+internal/grpc/proto/*.pb.go
+
+# Node / web
+web/node_modules/
+web/dist/
+web/src-tauri/target/
+
+# Terraform state
+deployments/terraform/*.tfstate
+deployments/terraform/*.tfstate.backup
+deployments/terraform/.terraform/

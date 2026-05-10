@@ -1,0 +1,34 @@
+# Hysteria2 server config
+# Protocol: QUIC-based, masquerades as HTTP/3
+# Very high throughput, resistant to TCP reset attacks.
+# Requires: a domain + TLS cert, OR self-signed with pinning.
+#
+# Replace: YOUR_PASSWORD, YOUR_DOMAIN, cert/key paths.
+
+listen: :443    # UDP port — open in firewall
+
+tls:
+  cert: /etc/letsencrypt/live/YOUR_DOMAIN_HERE/fullchain.pem
+  key:  /etc/letsencrypt/live/YOUR_DOMAIN_HERE/privkey.pem
+
+# Masquerade as a real HTTPS site to fool DPI
+masquerade:
+  type: proxy
+  proxy:
+    url: https://www.bing.com
+    rewriteHost: true
+
+# Authentication
+auth:
+  type: password
+  password: YOUR_PASSWORD_HERE
+
+# Bandwidth limits per client (optional)
+# bandwidth:
+#   up:   100 mbps
+#   down: 200 mbps
+
+# Logging
+log:
+  level: warn
+  output: /var/log/hysteria2/server.log

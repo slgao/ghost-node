@@ -1,0 +1,15 @@
+FROM alpine:3.19
+ARG XRAY_VERSION=1.8.11
+RUN apk add --no-cache curl unzip ca-certificates && \
+    ARCH=$(uname -m) && \
+    case "$ARCH" in \
+      x86_64)  XA="64" ;; \
+      aarch64) XA="arm64-v8a" ;; \
+      *) echo "unsupported arch: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -sL "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${XA}.zip" \
+         -o /tmp/xray.zip && \
+    unzip -q /tmp/xray.zip xray -d /usr/local/bin/ && \
+    chmod +x /usr/local/bin/xray && \
+    rm /tmp/xray.zip
+ENTRYPOINT ["/usr/local/bin/xray", "run", "-c"]
