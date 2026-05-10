@@ -209,16 +209,7 @@ cmd_status() {
     echo -e "  Start:  ${CYAN}bash scripts/setup-mac-vpn.sh start${NC}"
   fi
 
-  # Check proxy by testing whether traffic actually exits via the tunnel
-  PROXY_CHECK=$(curl -s --max-time 5 --proxy socks5h://127.0.0.1:$SOCKS_PORT https://ifconfig.me 2>/dev/null || echo "")
-  DIRECT_CHECK=$(curl -s --max-time 5 https://ifconfig.me 2>/dev/null || echo "")
-  if [[ -n "$PROXY_CHECK" && "$PROXY_CHECK" == "$DIRECT_CHECK" ]]; then
-    success "Mac system proxy is active (browser traffic goes through VPN)"
-  elif [[ -n "$PROXY_CHECK" ]]; then
-    warn "Tunnel is up but system proxy may not be set"
-    warn "  Set manually: System Settings → Network → Wi-Fi → Details → Proxies"
-    warn "  SOCKS Proxy → 127.0.0.1:$SOCKS_PORT"
-  fi
+  echo -e "  Verify in browser: ${CYAN}https://ip.sb${NC} should show the exit IP above"
   echo ""
 }
 
