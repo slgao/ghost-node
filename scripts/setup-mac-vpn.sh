@@ -52,8 +52,21 @@ cmd_start() {
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
 
-  # Stop any existing instance
+  # Stop any existing instance and free the ports
   docker rm -f vpn-mac-client 2>/dev/null || true
+
+  # Stop any docker-compose tunnel-test containers using the same ports
+  docker compose --profile tunnel-test down 2>/dev/null || true
+
+  # Kill any other process holding port 10808 or 10809
+  for port in $SOCKS_PORT $HTTP_PORT; do
+    pid=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+    if [[ -n "$pid" ]]; then
+      warn "Port $port in use by PID $pid — stopping it..."
+      kill "$pid" 2>/dev/null || true
+      sleep 1
+    fi
+  done
 
   # Fetch credentials from server
   info "Fetching credentials from $SSH_HOST..."
@@ -84,14 +97,14 @@ cmd_start() {
   "inbounds": [
     {
       "tag": "socks5-in",
-      "listen": "127.0.0.1",
+      "listen": "0.0.0.0",
       "port": $SOCKS_PORT,
       "protocol": "socks",
       "settings": { "auth": "noauth", "udp": true }
     },
     {
       "tag": "http-in",
-      "listen": "127.0.0.1",
+      "listen": "0.0.0.0",
       "port": $HTTP_PORT,
       "protocol": "http"
     }
@@ -196,14 +209,15 @@ cmd_status() {
     echo -e "  Start:  ${CYAN}bash scripts/setup-mac-vpn.sh start${NC}"
   fi
 
-  local service; service=$(get_wifi_service)
-  if [[ -n "$service" ]]; then
-    PROXY_STATE=$(networksetup -getsocksfirewallproxy "$service" 2>/dev/null | grep "Enabled" | awk '{print $2}')
-    if [[ "$PROXY_STATE" == "Yes" ]]; then
-      success "Mac system proxy is active"
-    else
-      warn "Mac system proxy is OFF — run: bash scripts/setup-mac-vpn.sh start"
-    fi
+  # Check proxy by testing whether traffic actually exits via the tunnel
+  PROXY_CHECK=$(curl -s --max-time 5 --proxy socks5h://127.0.0.1:$SOCKS_PORT https://ifconfig.me 2>/dev/null || echo "")
+  DIRECT_CHECK=$(curl -s --max-time 5 https://ifconfig.me 2>/dev/null || echo "")
+  if [[ -n "$PROXY_CHECK" && "$PROXY_CHECK" == "$DIRECT_CHECK" ]]; then
+    success "Mac system proxy is active (browser traffic goes through VPN)"
+  elif [[ -n "$PROXY_CHECK" ]]; then
+    warn "Tunnel is up but system proxy may not be set"
+    warn "  Set manually: System Settings → Network → Wi-Fi → Details → Proxies"
+    warn "  SOCKS Proxy → 127.0.0.1:$SOCKS_PORT"
   fi
   echo ""
 }
