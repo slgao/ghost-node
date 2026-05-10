@@ -25,6 +25,11 @@ coverage.html
 # macOS
 .DS_Store
 
+# Sensitive local files — never commit
+vless_uri.txt
+*.~undo-tree~
+.env
+
 # Docker volumes (if bind-mounted)
 data/
 

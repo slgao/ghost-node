@@ -4,11 +4,11 @@
 
 | | |
 |---|---|
-| **IP** | YOUR_SERVER_IP |
+| **IP** | see `~/.ssh/config` → `oracle-vpn` host |
 | **Provider** | Oracle Cloud (Always Free) |
 | **Protocol** | VLESS + REALITY |
 | **Port** | 443 |
-| **Credentials file** | `/root/vpn-server-credentials.env` |
+| **Credentials file** | `/root/vpn-server-credentials.env` on the server |
 
 ---
 
@@ -18,11 +18,7 @@
 ssh oracle-vpn
 ```
 
-Your SSH config (`~/.ssh/config`) already has this set up. If it stops working, the full command is:
-
-```bash
-ssh -i ~/.ssh/oracle-vpn.pem ubuntu@YOUR_SERVER_IP
-```
+Your SSH config (`~/.ssh/config`) already has the IP and key path set up. If it stops working, check the IP in the Oracle Cloud console and update `~/.ssh/config`.
 
 ---
 
