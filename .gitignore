@@ -28,8 +28,8 @@ coverage.html
 # Docker volumes (if bind-mounted)
 data/
 
-# Generated proto Go files
-internal/grpc/proto/*.pb.go
+# Generated proto Go files (committed as hand-written stubs; regenerate with make proto)
+# internal/grpc/proto/*.pb.go
 
 # Node / web
 web/node_modules/

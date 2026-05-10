@@ -7,31 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  # ── Proto generation ────────────────────────────────────────────────────────
-  proto:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-      - name: Install protoc
-        run: |
-          sudo apt-get update && sudo apt-get install -y protobuf-compiler
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.0
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
-      - name: Generate proto
-        run: |
-          mkdir -p internal/grpc/proto
-          protoc \
-            --go_out=internal/grpc/proto --go_opt=paths=source_relative \
-            --go-grpc_out=internal/grpc/proto --go-grpc_opt=paths=source_relative \
-            api/proto/*.proto
-
   # ── Build ───────────────────────────────────────────────────────────────────
   build:
     runs-on: ubuntu-latest
-    needs: proto
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -48,7 +26,6 @@ jobs:
   # ── Lint ────────────────────────────────────────────────────────────────────
   lint:
     runs-on: ubuntu-latest
-    needs: proto
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -63,7 +40,6 @@ jobs:
   # ── Tests ───────────────────────────────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
-    needs: proto
     services:
       postgres:
         image: postgres:16-alpine
@@ -101,9 +77,6 @@ jobs:
           go-version: "1.22"
           cache: true
       - run: go test -race -coverprofile=coverage.out ./...
-      - uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
 
   # ── Docker build check ──────────────────────────────────────────────────────
   docker:
