@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { authAPI, nodesAPI, type Node, type User } from "@/api/client";
+import { authAPI, nodesAPI, usageAPI, type Node, type User, type UsageSummary, type ConnectResult } from "@/api/client";
 
 interface VPNState {
   // Auth
@@ -21,6 +21,12 @@ interface VPNState {
   bytesIn: number;
   bytesOut: number;
 
+  // Usage
+  usage: UsageSummary | null;
+
+  // Active config (after Connect)
+  activeConfig: ConnectResult | null;
+
   // Actions
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
@@ -29,6 +35,7 @@ interface VPNState {
   selectNode: (node: Node) => void;
   connect: (nodeId: string) => Promise<void>;
   disconnect: () => void;
+  fetchUsage: () => Promise<void>;
 }
 
 export const useVPNStore = create<VPNState>()(
@@ -46,6 +53,8 @@ export const useVPNStore = create<VPNState>()(
       activeTransport: null,
       bytesIn: 0,
       bytesOut: 0,
+      usage: null,
+      activeConfig: null,
 
       login: async (email, password) => {
         const { data } = await authAPI.login(email, password);
@@ -112,6 +121,7 @@ export const useVPNStore = create<VPNState>()(
             isConnecting: false,
             connectedNodeId: nodeId,
             activeTransport: data.profile.type,
+            activeConfig: data,
           });
         } catch (err) {
           set({ isConnecting: false });
@@ -124,9 +134,15 @@ export const useVPNStore = create<VPNState>()(
           isConnected: false,
           connectedNodeId: null,
           activeTransport: null,
+          activeConfig: null,
           bytesIn: 0,
           bytesOut: 0,
         });
+      },
+
+      fetchUsage: async () => {
+        const { data } = await usageAPI.get();
+        set({ usage: data });
       },
     }),
     {

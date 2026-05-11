@@ -106,11 +106,27 @@ export interface TransportProfile {
   priority: number;
 }
 
+export interface ConnectResult {
+  profile: TransportProfile;
+  vless_uri: string;
+  node: { name: string; address: string; region: string };
+}
+
+export interface SubscriptionResult {
+  node: string;
+  region: string;
+  uris: string[];
+  clash_url: string;
+  singbox_url: string;
+  v2rayn_url: string;
+}
+
 export const nodesAPI = {
   list: () => getClient().get<{ nodes: Node[] }>("/nodes"),
   get: (id: string) => getClient().get<{ node: Node }>(`/nodes/${id}`),
-  connect: (id: string) =>
-    getClient().get<{ profile: TransportProfile }>(`/nodes/${id}/connect`),
+  connect: (id: string) => getClient().get<ConnectResult>(`/nodes/${id}/connect`),
+  subscription: (id: string) =>
+    getClient().get<SubscriptionResult>(`/nodes/${id}/subscription?format=all`),
 };
 
 // ─── Profile & Devices ─────────────────────────────────────────────────────
@@ -133,4 +149,34 @@ export const devicesAPI = {
   add: (name: string, type: Device["type"], publicKey: string) =>
     getClient().post<{ device: Device }>("/devices", { name, type, public_key: publicKey }),
   remove: (id: string) => getClient().delete(`/devices/${id}`),
+};
+
+// ─── Usage ─────────────────────────────────────────────────────────────────
+
+export interface DailyUsage {
+  date: string;
+  bytes_in: number;
+  bytes_out: number;
+}
+
+export interface UsageSummary {
+  quota: {
+    plan: string;
+    quota_bytes: number;
+    used_bytes: number;
+    remaining_bytes: number;
+    used_percent: number;
+    expires_at: string | null;
+  };
+  period: {
+    days: number;
+    bytes_in: number;
+    bytes_out: number;
+    total: number;
+  };
+  daily: DailyUsage[];
+}
+
+export const usageAPI = {
+  get: () => getClient().get<UsageSummary>("/usage"),
 };

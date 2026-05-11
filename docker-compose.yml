@@ -9,6 +9,7 @@ volumes:
   redis_data:
   grafana_data:
   prometheus_data:
+  web_node_modules:
 
 # ─── Services ─────────────────────────────────────────────────────────────────
 services:
@@ -204,6 +205,24 @@ services:
     networks:
       - vpn_net
     profiles: ["tunnel-test"]
+
+  # ── Web (React + Vite dev server) ─────────────────────────────────────────
+  web:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./web:/app
+      - web_node_modules:/app/node_modules
+    environment:
+      - API_TARGET=http://control-plane:8080
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "1420:1420"
+    depends_on:
+      - control-plane
+    networks:
+      - vpn_net
 
   # ── Grafana ────────────────────────────────────────────────────────────────
   grafana:

@@ -27,8 +27,12 @@ coverage.html
 
 # Sensitive local files — never commit
 vless_uri.txt
+vless_uri.png
 *.~undo-tree~
 .env
+
+# Local scratch / reference images
+UI.png
 
 # Docker volumes (if bind-mounted)
 data/

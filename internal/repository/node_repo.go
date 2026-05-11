@@ -134,9 +134,11 @@ func (r *nodeRepository) FindByAddress(ctx context.Context, address string) (*mo
 
 func (r *nodeRepository) MarkStaleOffline(ctx context.Context, threshold time.Duration) (int64, error) {
 	cutoff := time.Now().Add(-threshold)
+	// Only affect nodes that have had an agent heartbeat before — manually-added
+	// nodes (agent_version IS NULL) are never auto-offlined.
 	result := r.db.WithContext(ctx).
 		Model(&models.Node{}).
-		Where("status = ? AND last_heartbeat < ?", models.NodeStatusOnline, cutoff).
+		Where("status = ? AND last_heartbeat < ? AND agent_version IS NOT NULL", models.NodeStatusOnline, cutoff).
 		Update("status", models.NodeStatusOffline)
 	if result.Error != nil {
 		return 0, fmt.Errorf("marking stale nodes offline: %w", result.Error)

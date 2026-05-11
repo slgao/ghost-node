@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useVPNStore } from "@/store/vpnStore";
+import { ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 type Mode = "login" | "register";
 
@@ -8,90 +9,191 @@ export default function Login() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useVPNStore();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      if (mode === "login") {
-        await login(email, password);
-      } else {
-        await register(email, password);
-      }
+      mode === "login" ? await login(email, password) : await register(email, password);
       navigate("/");
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Authentication failed";
-      setError(msg);
+    } catch {
+      setError(mode === "login" ? "Wrong email or password." : "Could not create account.");
     } finally {
       setLoading(false);
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    background: "var(--raised)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    color: "var(--text-1)",
+    fontSize: 14,
+    outline: "none",
+    transition: "border-color .15s",
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-gray-900 rounded-2xl p-8 shadow-2xl border border-gray-800">
-        <div className="mb-8 text-center">
-          <div className="w-12 h-12 bg-blue-600 rounded-xl mx-auto mb-4 flex items-center justify-center">
-            <span className="text-white text-xl font-bold">V</span>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: "var(--bg)",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 360 }}>
+        {/* Brand */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div
+            style={{
+              display: "inline-flex",
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
+          >
+            <ShieldCheck size={20} color="var(--green)" strokeWidth={2} />
           </div>
-          <h1 className="text-2xl font-bold text-white">VPN Platform</h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-1)", letterSpacing: "-0.02em" }}>
+            VPN Platform
+          </h1>
+          <p style={{ color: "var(--text-3)", fontSize: 13, marginTop: 4 }}>
             {mode === "login" ? "Sign in to your account" : "Create a new account"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-2)", marginBottom: 6 }}>
+              Email
+            </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
+              style={inputStyle}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--text-2)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             />
           </div>
 
+          {/* Password */}
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-2)", marginBottom: 6 }}>
+              Password
+            </label>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPw ? "text" : "password"}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                style={{ ...inputStyle, paddingRight: 40 }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--text-2)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-3)",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Error */}
           {error && (
-            <p className="text-red-400 text-sm bg-red-900/30 border border-red-800 rounded-lg px-3 py-2">
+            <p style={{ fontSize: 13, color: "var(--red)", padding: "8px 12px", background: "rgba(239,68,68,.08)", borderRadius: 6 }}>
               {error}
             </p>
           )}
 
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+            style={{
+              marginTop: 4,
+              padding: "10px 16px",
+              background: "var(--text-1)",
+              color: "var(--bg)",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              transition: "opacity .15s",
+            }}
           >
-            {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+            {loading ? (
+              <>
+                <span
+                  className="spin"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    border: "2px solid rgba(0,0,0,.2)",
+                    borderTopColor: "#000",
+                    display: "inline-block",
+                  }}
+                />
+                Please wait…
+              </>
+            ) : mode === "login" ? (
+              "Sign in"
+            ) : (
+              "Create account"
+            )}
           </button>
         </form>
 
-        <p className="text-center text-gray-400 text-sm mt-6">
-          {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+        {/* Toggle */}
+        <p style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: "var(--text-3)" }}>
+          {mode === "login" ? "No account? " : "Already registered? "}
           <button
-            onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="text-blue-400 hover:text-blue-300 font-medium"
+            onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-2)", fontWeight: 500, fontSize: 13 }}
           >
             {mode === "login" ? "Register" : "Sign in"}
           </button>

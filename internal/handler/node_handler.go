@@ -20,10 +20,10 @@ func NewNodeHandler(nodeSvc *service.NodeService, trafficSvc *service.TrafficSer
 	return &NodeHandler{nodeSvc: nodeSvc, trafficSvc: trafficSvc}
 }
 
-// ListNodes returns all public online nodes.
+// ListNodes returns all public nodes with their current status.
 // GET /api/v1/nodes
 func (h *NodeHandler) ListNodes(c *gin.Context) {
-	nodes, err := h.nodeSvc.ListOnline(c.Request.Context())
+	nodes, err := h.nodeSvc.ListAll(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list nodes"})
 		return
@@ -68,7 +68,20 @@ func (h *NodeHandler) GetConnectionConfig(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"profile": profile})
+
+	// Build importable URIs for this profile so the client can display them.
+	node, err := h.nodeSvc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "node not found"})
+		return
+	}
+	uri := buildClientURI(node, profile)
+
+	c.JSON(http.StatusOK, gin.H{
+		"profile":  profile,
+		"vless_uri": uri,
+		"node":     gin.H{"name": node.Name, "address": node.Address, "region": node.Region},
+	})
 }
 
 // ─── Admin endpoints ──────────────────────────────────────────────────────────
