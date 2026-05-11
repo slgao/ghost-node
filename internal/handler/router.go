@@ -46,7 +46,7 @@ func (r *Router) Setup() *gin.Engine {
 	r.engine.Use(requestLogger())
 	r.engine.Use(corsMiddleware())
 	r.engine.Use(metrics.GinMiddleware())
-	r.engine.Use(rateLimitByIP(r.rdb, 300, time.Minute))
+	r.engine.Use(rateLimitByIP(r.rdb, "global", 300, time.Minute))
 
 	// health + metrics
 	r.engine.GET("/healthz", func(c *gin.Context) {
@@ -57,7 +57,7 @@ func (r *Router) Setup() *gin.Engine {
 	v1 := r.engine.Group("/api/v1")
 
 	// ── Public auth routes (stricter limit: 20 req/min) ───────────────────────
-	authGroup := v1.Group("/auth", rateLimitByIP(r.rdb, 20, time.Minute))
+	authGroup := v1.Group("/auth", rateLimitByIP(r.rdb, "auth", 20, time.Minute))
 	{
 		authGroup.POST("/register", r.authH.Register)
 		authGroup.POST("/login",    r.authH.Login)

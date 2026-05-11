@@ -10,6 +10,7 @@ PASS=0
 FAIL=0
 EMAIL="verify-$(date +%s)@test.local"
 PASSWORD="TestPass123!"
+DEVICE_PUBKEY="wg-pubkey-$(date +%s)-$(od -An -N4 -tx4 /dev/urandom | tr -d ' ')"
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -158,7 +159,7 @@ assert_field "profile" "email" "$prof_email"
 
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "11. Devices — Add"
-resp=$(api POST /api/v1/devices '{"name":"test-laptop","type":"desktop","public_key":"wg-pubkey-placeholder-abc123"}')
+resp=$(api POST /api/v1/devices "{\"name\":\"test-laptop\",\"type\":\"desktop\",\"public_key\":\"$DEVICE_PUBKEY\"}")
 split_response "$resp"
 assert_status "POST /api/v1/devices" 201 "$RESP_STATUS" "$RESP_BODY"
 DEVICE_ID=$(echo "$RESP_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['device']['id'])" 2>/dev/null || echo "")

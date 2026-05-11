@@ -9,13 +9,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// rateLimitByIP returns a fixed-window rate limiter keyed on client IP.
-// reqs is the maximum number of requests allowed within window.
+// rateLimitByIP returns a fixed-window rate limiter keyed on name + client IP.
+// name scopes independent limits so they don't share the same counter.
 // On Redis failure the middleware fails open (does not block the request).
-func rateLimitByIP(rdb *redis.Client, reqs int, window time.Duration) gin.HandlerFunc {
+func rateLimitByIP(rdb *redis.Client, name string, reqs int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		windowStart := time.Now().Truncate(window).Unix()
-		key := fmt.Sprintf("rl:%s:%d", c.ClientIP(), windowStart)
+		key := fmt.Sprintf("rl:%s:%s:%d", name, c.ClientIP(), windowStart)
 
 		count, err := rdb.Incr(c.Request.Context(), key).Result()
 		if err != nil {
