@@ -15,6 +15,7 @@ import (
 	"github.com/vpnplatform/core/internal/database"
 	grpcserver "github.com/vpnplatform/core/internal/grpc"
 	"github.com/vpnplatform/core/internal/handler"
+	"github.com/vpnplatform/core/internal/metrics"
 	"github.com/vpnplatform/core/internal/repository"
 	"github.com/vpnplatform/core/internal/service"
 	"github.com/vpnplatform/core/pkg/config"
@@ -69,6 +70,11 @@ func run() error {
 	authSvc := service.NewAuthService(userRepo, jwtSvc, db)
 	nodeSvc := service.NewNodeService(nodeRepo)
 	userSvc := service.NewUserService(userRepo, deviceRepo)
+
+	// Seed gauges from DB so metrics survive process restarts.
+	if n, err := userRepo.Count(bgCtx); err == nil {
+		metrics.RegisteredUsers.Set(float64(n))
+	}
 
 	// ── HTTP server ───────────────────────────────────────────────────────────
 	router := handler.NewRouter(jwtSvc, authSvc, nodeSvc, userSvc, rdb)

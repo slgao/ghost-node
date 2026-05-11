@@ -18,6 +18,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, offset, limit int) ([]models.User, int64, error)
+	Count(ctx context.Context) (int64, error)
 }
 
 type userRepository struct {
@@ -75,6 +76,14 @@ func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting user: %w", err)
 	}
 	return nil
+}
+
+func (r *userRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.User{}).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("counting users: %w", err)
+	}
+	return count, nil
 }
 
 func (r *userRepository) List(ctx context.Context, offset, limit int) ([]models.User, int64, error) {

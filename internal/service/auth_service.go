@@ -85,6 +85,7 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*models.U
 	}
 
 	metrics.RecordAuthEvent("register", true)
+	metrics.RegisteredUsers.Inc()
 	return user, tokens, nil
 }
 
