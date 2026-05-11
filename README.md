@@ -6,21 +6,22 @@ A censorship-resistant VPN platform built on [Xray-core](https://github.com/XTLS
 
 ```
 ┌─────────────────────────────────────────────────────┐
+│  Web Portal  :1420  (React — account management)    │
 │  Client Apps (Shadowrocket / v2rayNG / NekoRay)     │
 └───────────────────┬─────────────────────────────────┘
-                    │ VLESS+REALITY / WS+TLS / Hysteria2
+                    │ REST API (portal) / VLESS+REALITY (tunnel)
 ┌───────────────────▼─────────────────────────────────┐
-│  Oracle/VPS Server                                  │
-│  ├── Xray-core  (protocol engine)                   │
-│  └── Node Agent (reports to control plane)          │
-└───────────────────┬─────────────────────────────────┘
-                    │ gRPC
-┌───────────────────▼─────────────────────────────────┐
-│  Control Plane (Go API)                             │
+│  Control Plane (Go API)  :8080                      │
 │  ├── REST API  :8080                                │
 │  ├── gRPC      :9090                                │
 │  ├── Prometheus :9092                               │
 │  └── Grafana   :3001                                │
+└───────────────────┬─────────────────────────────────┘
+                    │ gRPC
+┌───────────────────▼─────────────────────────────────┐
+│  Oracle/VPS Server                                  │
+│  ├── Xray-core  (protocol engine)                   │
+│  └── Node Agent (reports to control plane)          │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -135,6 +136,18 @@ Outputs `vless.txt`, `clash.yaml`, `singbox.json` and QR codes (requires `qrenco
 
 ---
 
+### `add-node.sh` — Register a new server in the database
+
+Run locally (requires Docker running). Prompts for all credentials interactively — nothing is written to disk or committed to git.
+
+```bash
+bash scripts/add-node.sh
+```
+
+You will be asked for: node name, IP, region, Xray UUID, X25519 public key, short ID, SNI, and port. The script inserts one row in `nodes` and one in `transport_profiles`. The new server appears in the web portal immediately.
+
+---
+
 ### `verify.sh` — API end-to-end test suite
 
 Runs 30 checks against the control plane API. Use after local `docker compose up`.
@@ -191,9 +204,19 @@ cp .env.example .env
 docker compose up -d
 
 # Services:
+#   Web portal         → http://localhost:1420  (register / login)
 #   Control plane API  → http://localhost:8080
 #   Grafana dashboard  → http://localhost:3001  (admin / admin)
 #   Prometheus         → http://localhost:9092
+```
+
+The web portal is an account management UI. Register an account, select a server, and click **Connect** to get a VLESS URI + QR code. Import that into Shadowrocket, v2rayNG, or any compatible client — the portal itself does not establish a tunnel.
+
+To register the first admin account, use the portal's Register page. To promote it to admin role:
+
+```bash
+docker exec vpn-postgres-1 psql -U vpnplatform -d vpnplatform \
+  -c "UPDATE users SET role='admin' WHERE email='you@example.com';"
 ```
 
 ---
@@ -293,10 +316,17 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 ├── deployments/
 │   ├── docker/               # Dockerfiles + Air hot-reload configs
 │   └── monitoring/           # Prometheus + Grafana provisioning
+├── web/                      # React web portal (account management UI)
+│   ├── src/
+│   │   ├── pages/            # Login, Dashboard
+│   │   ├── api/              # Axios API client
+│   │   └── store/            # Zustand state (auth, nodes, connection)
+│   └── vite.config.ts
 ├── scripts/
 │   ├── setup-server.sh       # Deploy Xray on a VPS
 │   ├── manage-server.sh      # Server status, restart, credentials, firewall
 │   ├── setup-mac-vpn.sh      # Connect Mac to VPN via Docker + system proxy
+│   ├── add-node.sh           # Register a new server node in the database
 │   ├── view-vpn-report.sh    # Pull traffic report from server, open in browser
 │   ├── analyze-vpn-traffic.sh# Run on server: parse logs, generate HTML report
 │   ├── gen-client-config.sh  # Download subscription configs from control plane
