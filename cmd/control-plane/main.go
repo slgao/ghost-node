@@ -40,6 +40,10 @@ func run() error {
 	log := logger.Named("main")
 	log.Info("starting control-plane", zap.Int("port", cfg.Server.Port))
 
+	// ── Background context (cancelled on shutdown) ────────────────────────────
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+	defer bgCancel()
+
 	// ── Database ──────────────────────────────────────────────────────────────
 	db, err := database.NewPostgres(cfg.Database)
 	if err != nil {
@@ -50,7 +54,7 @@ func run() error {
 		return fmt.Errorf("migration: %w", err)
 	}
 
-	_, err = database.NewRedis(cfg.Redis)
+	rdb, err := database.NewRedis(cfg.Redis)
 	if err != nil {
 		return fmt.Errorf("redis: %w", err)
 	}
@@ -67,7 +71,7 @@ func run() error {
 	userSvc := service.NewUserService(userRepo, deviceRepo)
 
 	// ── HTTP server ───────────────────────────────────────────────────────────
-	router := handler.NewRouter(jwtSvc, authSvc, nodeSvc, userSvc)
+	router := handler.NewRouter(jwtSvc, authSvc, nodeSvc, userSvc, rdb)
 	engine := router.Setup()
 
 	httpAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
@@ -87,6 +91,9 @@ func run() error {
 		return fmt.Errorf("gRPC server start: %w", err)
 	}
 
+	// Mark nodes offline after 2 missed heartbeats (default interval 30s → threshold 2min).
+	agentServer.StartStaleDetection(bgCtx, 30*time.Second, 2*time.Minute)
+
 	// ── Start HTTP ────────────────────────────────────────────────────────────
 	go func() {
 		log.Info("HTTP listening", zap.String("addr", httpAddr))
@@ -101,10 +108,11 @@ func run() error {
 	<-quit
 
 	log.Info("shutting down...")
+	bgCancel()
 	grpcSrv.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	return httpSrv.Shutdown(ctx)
+	return httpSrv.Shutdown(shutCtx)
 }

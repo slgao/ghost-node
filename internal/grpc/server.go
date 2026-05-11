@@ -33,26 +33,58 @@ func NewAgentServer(nodeRepo repository.NodeRepository) *AgentServer {
 }
 
 func (s *AgentServer) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.RegisterNodeResponse, error) {
+	// Upsert: reuse existing record if address already registered.
+	existing, err := s.nodeRepo.FindByAddress(ctx, req.Address)
+	if err == nil {
+		existing.AgentVersion = req.AgentVersion
+		existing.Status = models.NodeStatusOnline
+		if req.Hostname != "" {
+			existing.Name = req.Hostname
+		}
+		if updateErr := s.nodeRepo.Update(ctx, existing); updateErr != nil {
+			logger.L().Warn("node re-register update failed", zap.Error(updateErr))
+		}
+		logger.L().Info("node re-registered", zap.String("id", existing.ID.String()), zap.String("host", req.Hostname))
+		return &pb.RegisterNodeResponse{NodeId: existing.ID.String(), Success: true, Message: "reconnected"}, nil
+	}
+
 	node := &models.Node{
 		Name:         req.Hostname,
 		Address:      req.Address,
 		Region:       req.Region,
 		Country:      req.Country,
 		AgentVersion: req.AgentVersion,
-		Status:       models.NodeStatusOffline,
+		Status:       models.NodeStatusOnline,
 	}
-
 	if err := s.nodeRepo.Create(ctx, node); err != nil {
 		logger.L().Error("failed to register node", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "registering node: %v", err)
 	}
 
 	logger.L().Info("node registered", zap.String("id", node.ID.String()), zap.String("host", req.Hostname))
-	return &pb.RegisterNodeResponse{
-		NodeId:  node.ID.String(),
-		Success: true,
-		Message: "registered",
-	}, nil
+	return &pb.RegisterNodeResponse{NodeId: node.ID.String(), Success: true, Message: "registered"}, nil
+}
+
+// StartStaleDetection runs a background loop that marks nodes offline when
+// their heartbeat has not been received within threshold.
+func (s *AgentServer) StartStaleDetection(ctx context.Context, interval, threshold time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				n, err := s.nodeRepo.MarkStaleOffline(ctx, threshold)
+				if err != nil {
+					logger.L().Warn("stale node detection failed", zap.Error(err))
+				} else if n > 0 {
+					logger.L().Info("marked stale nodes offline", zap.Int64("count", n))
+				}
+			}
+		}
+	}()
 }
 
 func (s *AgentServer) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {

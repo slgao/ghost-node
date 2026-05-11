@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/vpnplatform/core/internal/auth"
 	"github.com/vpnplatform/core/internal/metrics"
@@ -15,6 +16,7 @@ import (
 type Router struct {
 	engine *gin.Engine
 	jwtSvc *auth.JWTService
+	rdb    *redis.Client
 	authH  *AuthHandler
 	nodeH  *NodeHandler
 	userH  *UserHandler
@@ -26,10 +28,12 @@ func NewRouter(
 	authSvc *service.AuthService,
 	nodeSvc *service.NodeService,
 	userSvc *service.UserService,
+	rdb *redis.Client,
 ) *Router {
 	return &Router{
 		engine: gin.New(),
 		jwtSvc: jwtSvc,
+		rdb:    rdb,
 		authH:  NewAuthHandler(authSvc),
 		nodeH:  NewNodeHandler(nodeSvc),
 		userH:  NewUserHandler(userSvc),
@@ -42,6 +46,7 @@ func (r *Router) Setup() *gin.Engine {
 	r.engine.Use(requestLogger())
 	r.engine.Use(corsMiddleware())
 	r.engine.Use(metrics.GinMiddleware())
+	r.engine.Use(rateLimitByIP(r.rdb, 300, time.Minute))
 
 	// health + metrics
 	r.engine.GET("/healthz", func(c *gin.Context) {
@@ -51,8 +56,8 @@ func (r *Router) Setup() *gin.Engine {
 
 	v1 := r.engine.Group("/api/v1")
 
-	// ── Public auth routes ───────────────────────────────────────────────────
-	authGroup := v1.Group("/auth")
+	// ── Public auth routes (stricter limit: 20 req/min) ───────────────────────
+	authGroup := v1.Group("/auth", rateLimitByIP(r.rdb, 20, time.Minute))
 	{
 		authGroup.POST("/register", r.authH.Register)
 		authGroup.POST("/login",    r.authH.Login)

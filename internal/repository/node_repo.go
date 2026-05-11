@@ -15,11 +15,13 @@ import (
 type NodeRepository interface {
 	Create(ctx context.Context, node *models.Node) error
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Node, error)
+	FindByAddress(ctx context.Context, address string) (*models.Node, error)
 	Update(ctx context.Context, node *models.Node) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListOnline(ctx context.Context) ([]models.Node, error)
 	ListAll(ctx context.Context) ([]models.Node, error)
 	UpdateHeartbeat(ctx context.Context, id uuid.UUID, metrics models.Node) error
+	MarkStaleOffline(ctx context.Context, threshold time.Duration) (int64, error)
 	CreateTransportProfile(ctx context.Context, tp *models.TransportProfile) error
 	ListTransportProfiles(ctx context.Context, nodeID uuid.UUID) ([]models.TransportProfile, error)
 }
@@ -114,6 +116,32 @@ func (r *nodeRepository) CreateTransportProfile(ctx context.Context, tp *models.
 		return fmt.Errorf("creating transport profile: %w", err)
 	}
 	return nil
+}
+
+func (r *nodeRepository) FindByAddress(ctx context.Context, address string) (*models.Node, error) {
+	var node models.Node
+	err := r.db.WithContext(ctx).
+		Where("address = ?", address).
+		First(&node).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("finding node by address: %w", err)
+	}
+	return &node, nil
+}
+
+func (r *nodeRepository) MarkStaleOffline(ctx context.Context, threshold time.Duration) (int64, error) {
+	cutoff := time.Now().Add(-threshold)
+	result := r.db.WithContext(ctx).
+		Model(&models.Node{}).
+		Where("status = ? AND last_heartbeat < ?", models.NodeStatusOnline, cutoff).
+		Update("status", models.NodeStatusOffline)
+	if result.Error != nil {
+		return 0, fmt.Errorf("marking stale nodes offline: %w", result.Error)
+	}
+	return result.RowsAffected, nil
 }
 
 func (r *nodeRepository) ListTransportProfiles(ctx context.Context, nodeID uuid.UUID) ([]models.TransportProfile, error) {
