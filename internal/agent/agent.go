@@ -67,10 +67,11 @@ func (a *Agent) Stop(ctx context.Context) {
 
 func (a *Agent) connect(ctx context.Context) error {
 	// TODO: replace insecure with mTLS credentials once certs are provisioned
-	conn, err := grpc.DialContext(ctx, a.cfg.ControlPlaneAddr,
+	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(dialCtx, a.cfg.ControlPlaneAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
-		grpc.WithTimeout(10*time.Second),
 	)
 	if err != nil {
 		return fmt.Errorf("dial %s: %w", a.cfg.ControlPlaneAddr, err)
