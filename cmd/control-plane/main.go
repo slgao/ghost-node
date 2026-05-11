@@ -61,15 +61,17 @@ func run() error {
 	}
 
 	// ── Repositories ──────────────────────────────────────────────────────────
-	userRepo   := repository.NewUserRepository(db)
-	nodeRepo   := repository.NewNodeRepository(db)
-	deviceRepo := repository.NewDeviceRepository(db)
+	userRepo    := repository.NewUserRepository(db)
+	nodeRepo    := repository.NewNodeRepository(db)
+	deviceRepo  := repository.NewDeviceRepository(db)
+	trafficRepo := repository.NewTrafficRepository(db)
 
 	// ── Services ──────────────────────────────────────────────────────────────
-	jwtSvc  := auth.NewJWTService(cfg.JWT)
-	authSvc := service.NewAuthService(userRepo, jwtSvc, db)
-	nodeSvc := service.NewNodeService(nodeRepo)
-	userSvc := service.NewUserService(userRepo, deviceRepo)
+	jwtSvc     := auth.NewJWTService(cfg.JWT)
+	authSvc    := service.NewAuthService(userRepo, jwtSvc, db)
+	nodeSvc    := service.NewNodeService(nodeRepo)
+	userSvc    := service.NewUserService(userRepo, deviceRepo)
+	trafficSvc := service.NewTrafficService(trafficRepo, db)
 
 	// Seed gauges from DB so metrics survive process restarts.
 	if n, err := userRepo.Count(bgCtx); err == nil {
@@ -77,7 +79,8 @@ func run() error {
 	}
 
 	// ── HTTP server ───────────────────────────────────────────────────────────
-	router := handler.NewRouter(jwtSvc, authSvc, nodeSvc, userSvc, rdb)
+	adminH  := handler.NewAdminHandler(userRepo, db)
+	router  := handler.NewRouter(jwtSvc, authSvc, nodeSvc, userSvc, trafficSvc, adminH, rdb)
 	engine := router.Setup()
 
 	httpAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

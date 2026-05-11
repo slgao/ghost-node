@@ -93,7 +93,11 @@ func (r *userRepository) List(ctx context.Context, offset, limit int) ([]models.
 	if err := r.db.WithContext(ctx).Model(&models.User{}).Count(&count).Error; err != nil {
 		return nil, 0, fmt.Errorf("counting users: %w", err)
 	}
-	if err := r.db.WithContext(ctx).Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Preload("Subscription").
+		Offset(offset).Limit(limit).
+		Order("created_at DESC").
+		Find(&users).Error; err != nil {
 		return nil, 0, fmt.Errorf("listing users: %w", err)
 	}
 	return users, count, nil

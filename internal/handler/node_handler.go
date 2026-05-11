@@ -6,16 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/vpnplatform/core/internal/auth"
 	"github.com/vpnplatform/core/internal/models"
 	"github.com/vpnplatform/core/internal/service"
 )
 
 type NodeHandler struct {
-	nodeSvc *service.NodeService
+	nodeSvc    *service.NodeService
+	trafficSvc *service.TrafficService
 }
 
-func NewNodeHandler(nodeSvc *service.NodeService) *NodeHandler {
-	return &NodeHandler{nodeSvc: nodeSvc}
+func NewNodeHandler(nodeSvc *service.NodeService, trafficSvc *service.TrafficService) *NodeHandler {
+	return &NodeHandler{nodeSvc: nodeSvc, trafficSvc: trafficSvc}
 }
 
 // ListNodes returns all public online nodes.
@@ -49,6 +51,12 @@ func (h *NodeHandler) GetNode(c *gin.Context) {
 // GetConnectionConfig returns the best transport profile for a node.
 // GET /api/v1/nodes/:id/connect
 func (h *NodeHandler) GetConnectionConfig(c *gin.Context) {
+	uid := auth.UserIDFromContext(c)
+	if err := h.trafficSvc.CheckQuota(c.Request.Context(), uid); err != nil {
+		c.JSON(http.StatusPaymentRequired, gin.H{"error": err.Error()})
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid node id"})

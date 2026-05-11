@@ -14,13 +14,15 @@ import (
 )
 
 type Router struct {
-	engine *gin.Engine
-	jwtSvc *auth.JWTService
-	rdb    *redis.Client
-	authH  *AuthHandler
-	nodeH  *NodeHandler
-	userH  *UserHandler
-	subH   *SubscriptionHandler
+	engine  *gin.Engine
+	jwtSvc  *auth.JWTService
+	rdb     *redis.Client
+	authH   *AuthHandler
+	nodeH   *NodeHandler
+	userH   *UserHandler
+	subH    *SubscriptionHandler
+	usageH  *UsageHandler
+	adminH  *AdminHandler
 }
 
 func NewRouter(
@@ -28,16 +30,20 @@ func NewRouter(
 	authSvc *service.AuthService,
 	nodeSvc *service.NodeService,
 	userSvc *service.UserService,
+	trafficSvc *service.TrafficService,
+	adminH *AdminHandler,
 	rdb *redis.Client,
 ) *Router {
 	return &Router{
-		engine: gin.New(),
-		jwtSvc: jwtSvc,
-		rdb:    rdb,
-		authH:  NewAuthHandler(authSvc),
-		nodeH:  NewNodeHandler(nodeSvc),
-		userH:  NewUserHandler(userSvc),
-		subH:   NewSubscriptionHandler(nodeSvc),
+		engine:  gin.New(),
+		jwtSvc:  jwtSvc,
+		rdb:     rdb,
+		authH:   NewAuthHandler(authSvc),
+		nodeH:   NewNodeHandler(nodeSvc, trafficSvc),
+		userH:   NewUserHandler(userSvc),
+		subH:    NewSubscriptionHandler(nodeSvc),
+		usageH:  NewUsageHandler(trafficSvc),
+		adminH:  adminH,
 	}
 }
 
@@ -81,6 +87,8 @@ func (r *Router) Setup() *gin.Engine {
 		protected.GET("/nodes/:id",                    r.nodeH.GetNode)
 		protected.GET("/nodes/:id/connect",            r.nodeH.GetConnectionConfig)
 		protected.GET("/nodes/:id/subscription",       r.subH.GetSubscription)
+
+		protected.GET("/usage", r.usageH.GetMyUsage)
 	}
 
 	// ── Admin routes ──────────────────────────────────────────────────────────
@@ -90,6 +98,10 @@ func (r *Router) Setup() *gin.Engine {
 		admin.POST("/nodes",                     r.nodeH.CreateNode)
 		admin.DELETE("/nodes/:id",               r.nodeH.DeleteNode)
 		admin.POST("/nodes/:id/transports",      r.nodeH.AddTransportProfile)
+
+		admin.GET("/users",                      r.adminH.ListUsers)
+		admin.PUT("/users/:id/status",           r.adminH.SetUserActive)
+		admin.PUT("/users/:id/quota",            r.adminH.UpdateUserQuota)
 	}
 
 	return r.engine
