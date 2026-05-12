@@ -80,10 +80,11 @@ function ConfigModal({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<"qr" | "uri" | "apps">("qr");
 
   const apps = [
-    { name: "v2rayN", platform: "Windows", icon: <Monitor size={16} />, url: "https://github.com/2dust/v2rayN/releases" },
-    { name: "v2rayU / Shadowrocket", platform: "macOS / iOS", icon: <Smartphone size={16} />, url: "#" },
-    { name: "v2rayNG", platform: "Android", icon: <Smartphone size={16} />, url: "https://github.com/2dust/v2rayNG/releases" },
-    { name: "Sing-box", platform: "All platforms", icon: <Router size={16} />, url: "https://sing-box.sagernet.org" },
+    { name: "Shadowrocket", platform: "iOS (App Store, $2.99)", icon: <Smartphone size={16} />, url: "https://apps.apple.com/us/app/shadowrocket/id932747112" },
+    { name: "v2rayU", platform: "macOS (free)", icon: <Monitor size={16} />, url: "https://github.com/yanue/V2rayU/releases" },
+    { name: "v2rayNG", platform: "Android (free)", icon: <Smartphone size={16} />, url: "https://github.com/2dust/v2rayNG/releases" },
+    { name: "v2rayN", platform: "Windows (free)", icon: <Monitor size={16} />, url: "https://github.com/2dust/v2rayN/releases" },
+    { name: "Sing-box", platform: "All platforms (free)", icon: <Router size={16} />, url: "https://sing-box.sagernet.org" },
   ];
 
   return (
