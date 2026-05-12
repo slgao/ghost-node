@@ -239,7 +239,7 @@ function ConfigModal({ onClose }: { onClose: () => void }) {
 
 export default function Dashboard() {
   const {
-    user, nodes, selectedNode, isConnected, isConnecting,
+    user, nodes, selectedNode, isConnected, isConnecting, connectedNodeId,
     activeTransport, activeConfig, usage, fetchNodes, fetchUsage,
     selectNode, connect, connectAuto, disconnect, logout,
   } = useVPNStore();
@@ -258,12 +258,17 @@ export default function Dashboard() {
   }, [isConnected, activeConfig]);
 
   const toggle = async () => {
-    if (isConnected) {
+    if (!selectedNode) {
+      if (isConnected) { disconnect(); setShowConfig(false); }
+      return;
+    }
+    // Already showing config for this exact node → disconnect
+    if (isConnected && connectedNodeId === selectedNode.id) {
       disconnect();
       setShowConfig(false);
       return;
     }
-    if (!selectedNode) return;
+    // Different node selected (or not connected) → fetch config for selected node
     setError("");
     try {
       await connect(selectedNode.id);

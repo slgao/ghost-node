@@ -109,7 +109,7 @@ export interface TransportProfile {
 export interface ConnectResult {
   profile: TransportProfile;
   vless_uri: string;
-  node: { name: string; address: string; region: string };
+  node: { id: string; name: string; address: string; region: string };
 }
 
 export interface SubscriptionResult {

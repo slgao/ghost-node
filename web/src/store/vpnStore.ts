@@ -137,7 +137,7 @@ export const useVPNStore = create<VPNState>()(
           set({
             isConnected: true,
             isConnecting: false,
-            connectedNodeId: data.node.address,
+            connectedNodeId: data.node.id,
             activeTransport: data.profile.type,
             activeConfig: data,
           });

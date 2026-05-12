@@ -78,9 +78,9 @@ func (h *NodeHandler) GetConnectionConfig(c *gin.Context) {
 	uri := buildClientURI(node, profile)
 
 	c.JSON(http.StatusOK, gin.H{
-		"profile":  profile,
+		"profile":   profile,
 		"vless_uri": uri,
-		"node":     gin.H{"name": node.Name, "address": node.Address, "region": node.Region},
+		"node":      gin.H{"id": node.ID, "name": node.Name, "address": node.Address, "region": node.Region},
 	})
 }
 
@@ -103,7 +103,7 @@ func (h *NodeHandler) AutoConnect(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"profile":   profile,
 		"vless_uri": uri,
-		"node":      gin.H{"name": node.Name, "address": node.Address, "region": node.Region},
+		"node":      gin.H{"id": node.ID, "name": node.Name, "address": node.Address, "region": node.Region},
 	})
 }
 
