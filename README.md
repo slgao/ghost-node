@@ -36,10 +36,15 @@ All day-to-day operations are handled by scripts in the `scripts/` folder.
 Run once on a fresh Ubuntu/Debian server (as root):
 
 ```bash
-# Copy to server and run
+# Basic — manual registration afterward
 scp scripts/setup-server.sh user@YOUR_SERVER:/tmp/
 ssh user@YOUR_SERVER
 sudo bash /tmp/setup-server.sh
+
+# Auto-register with the control plane in one step
+CONTROL_PLANE=https://vpn.yourdomain.com \
+ADMIN_TOKEN=<admin-jwt> \
+bash /tmp/setup-server.sh
 ```
 
 What it does:
@@ -49,6 +54,7 @@ What it does:
 - Opens firewall ports
 - Saves credentials to `/root/vpn-server-credentials.env`
 - Prints a `vless://` URI to import into any client app
+- If `CONTROL_PLANE` + `ADMIN_TOKEN` are set: registers the node and transport profile with the control plane automatically — the server appears in the portal immediately
 
 ---
 
@@ -136,6 +142,34 @@ Outputs `vless.txt`, `clash.yaml`, `singbox.json` and QR codes (requires `qrenco
 
 ---
 
+### `deploy-control-plane.sh` — Deploy the control plane on a public server
+
+Run as root on a fresh Ubuntu 22.04 VPS to install Docker, nginx, TLS, and start the full stack:
+
+```bash
+DOMAIN=vpn.yourdomain.com \
+EMAIL=you@example.com \
+bash scripts/deploy-control-plane.sh
+```
+
+What it does:
+- Installs Docker, nginx, certbot
+- Clones the repo, generates `.env` with random JWT and DB secrets
+- Starts `docker compose` (control plane, Postgres, Redis, Grafana, web portal)
+- Obtains a Let's Encrypt TLS certificate for your domain
+- Configures nginx to proxy HTTPS → API (:8080) and web portal (:1420)
+- Sets up auto-renewal
+
+After deployment, point `setup-server.sh` at the domain when adding VPN nodes:
+
+```bash
+CONTROL_PLANE=https://vpn.yourdomain.com \
+ADMIN_TOKEN=<admin-jwt> \
+bash scripts/setup-server.sh
+```
+
+---
+
 ### `add-node.sh` — Register a new server in the database
 
 Run locally (requires Docker running). Prompts for all credentials interactively — nothing is written to disk or committed to git.
@@ -210,7 +244,11 @@ docker compose up -d
 #   Prometheus         → http://localhost:9092
 ```
 
-The web portal is an account management UI. Register an account, select a server, and click **Connect** to get a VLESS URI + QR code. Import that into Shadowrocket, v2rayNG, or any compatible client — the portal itself does not establish a tunnel.
+The web portal is an account management UI. Register an account, then either:
+- **Select a server** from the list and click the power button, or
+- Click **"Auto-select best"** — the control plane scores all online nodes by CPU, memory, and active connections and picks the least-loaded one automatically
+
+Both paths return a VLESS URI + QR code. Import into Shadowrocket, v2rayNG, or any compatible client — the portal itself does not establish a tunnel.
 
 To register the first admin account, use the portal's Register page. To promote it to admin role:
 
@@ -244,12 +282,22 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 curl http://localhost:8080/api/v1/nodes \
   -H "Authorization: Bearer YOUR_TOKEN"
 
+# Get connection config for a specific node
+curl http://localhost:8080/api/v1/nodes/NODE_ID/connect \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Auto-select least-loaded node (no node ID needed)
+curl http://localhost:8080/api/v1/nodes/connect \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
 # Get subscription configs for a node
 curl "http://localhost:8080/api/v1/nodes/NODE_ID/subscription?format=all" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 Subscription formats: `all` (JSON) · `vless` (base64 for v2rayN) · `clash` (Clash Meta YAML) · `singbox` (sing-box JSON)
+
+Both connect endpoints return `{ profile, vless_uri, node }`. The auto-select endpoint scores all online nodes by CPU (50%) + memory (30%) + active connections (20%) and returns the lowest-scoring one.
 
 ### Admin
 
@@ -323,15 +371,16 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 │   │   └── store/            # Zustand state (auth, nodes, connection)
 │   └── vite.config.ts
 ├── scripts/
-│   ├── setup-server.sh       # Deploy Xray on a VPS
-│   ├── manage-server.sh      # Server status, restart, credentials, firewall
-│   ├── setup-mac-vpn.sh      # Connect Mac to VPN via Docker + system proxy
-│   ├── add-node.sh           # Register a new server node in the database
-│   ├── view-vpn-report.sh    # Pull traffic report from server, open in browser
-│   ├── analyze-vpn-traffic.sh# Run on server: parse logs, generate HTML report
-│   ├── gen-client-config.sh  # Download subscription configs from control plane
-│   ├── test-tunnel.sh        # Local tunnel verification (no VPS needed)
-│   └── verify.sh             # API end-to-end test suite
+│   ├── deploy-control-plane.sh # Deploy control plane on Ubuntu VPS with TLS
+│   ├── setup-server.sh         # Deploy Xray on a VPN node VPS
+│   ├── manage-server.sh        # Server status, restart, credentials, firewall
+│   ├── setup-mac-vpn.sh        # Connect Mac to VPN via Docker + system proxy
+│   ├── add-node.sh             # Register a new server node in the database
+│   ├── view-vpn-report.sh      # Pull traffic report from server, open in browser
+│   ├── analyze-vpn-traffic.sh  # Run on server: parse logs, generate HTML report
+│   ├── gen-client-config.sh    # Download subscription configs from control plane
+│   ├── test-tunnel.sh          # Local tunnel verification (no VPS needed)
+│   └── verify.sh               # API end-to-end test suite
 ├── docs/
 │   ├── china-setup-guide.md  # GFW bypass guide
 │   └── server-management.md  # Server operations reference
