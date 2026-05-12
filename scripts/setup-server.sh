@@ -66,6 +66,15 @@ ufw allow 443/udp             # Hysteria2
 ufw --force enable
 success "Firewall configured (ports: 22, $VLESS_PORT/tcp, 8443/tcp, 443/udp)"
 
+# Oracle Cloud Ubuntu images ship with a hard REJECT rule in iptables that sits
+# above UFW's chains and blocks all new inbound connections except port 22.
+# Remove it so UFW's rules take effect immediately without requiring a reboot.
+if iptables -L INPUT -n | grep -q "reject-with icmp-host-prohibited"; then
+  # Delete every REJECT rule in INPUT (there is usually exactly one)
+  while iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null; do :; done
+  success "Removed Oracle default REJECT rule from iptables INPUT chain"
+fi
+
 # ── 2. Install Xray ────────────────────────────────────────────────────────
 XRAY_DIR="/usr/local/xray"
 info "Installing Xray $XRAY_VERSION..."

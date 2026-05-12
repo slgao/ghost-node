@@ -55,6 +55,30 @@ sudo bash /tmp/manage-server.sh <command>
 
 ## Common Situations
 
+### Port 443 not reachable right after fresh setup
+
+Oracle Cloud Ubuntu images ship with an iptables `REJECT` rule that blocks all inbound ports except SSH, sitting above UFW's rules. The updated `setup-server.sh` removes it automatically. If you provisioned a node with an older version of the script, fix it manually:
+
+```bash
+ssh oracle-vpn
+sudo iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited
+```
+
+Verify port 443 is now open (run from your Mac):
+
+```bash
+nc -zv YOUR_SERVER_IP 443
+# expected: Connection to ... 443 succeeded!
+```
+
+This change is in-memory only and does not survive a reboot. To persist it:
+
+```bash
+sudo bash /tmp/manage-server.sh save-fw
+```
+
+---
+
 ### VPN stopped working
 
 ```bash
