@@ -344,60 +344,82 @@ export default function Dashboard() {
           }}>
 
             {/* Connect */}
-            <div style={{ padding: "32px 24px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-              <div style={{ position: "relative" }}>
-                {isConnecting && (
-                  <span className="spin" style={{
-                    position: "absolute", inset: -5, borderRadius: "50%", display: "block",
-                    border: "1.5px solid transparent",
-                    borderTopColor: "var(--text-3)", borderRightColor: "var(--text-3)",
-                  }} />
-                )}
-                <button
-                  onClick={toggle}
-                  disabled={isConnecting || (!isConnected && !selectedNode)}
-                  className={isConnected ? "glow-green" : ""}
-                  style={{
-                    width: 88, height: 88, borderRadius: "50%",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: (!isConnected && !selectedNode) || isConnecting ? "not-allowed" : "pointer",
-                    background: isConnected ? "var(--green)" : "var(--raised)",
-                    border: isConnected ? "1px solid var(--green)" : "1px solid var(--border)",
-                    transition: "background .2s, border-color .2s",
-                    opacity: !isConnected && !selectedNode && !isConnecting ? 0.4 : 1,
-                  }}
-                >
-                  <Power size={28} strokeWidth={1.8} color={isConnected ? "#000" : "var(--text-2)"} />
-                </button>
-              </div>
-
-              <div style={{ textAlign: "center" }}>
-                {isConnecting ? (
-                  <p style={{ color: "var(--text-2)", fontSize: 13 }}>Fetching config…</p>
-                ) : isConnected ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <p style={{ fontWeight: 600, color: "var(--green)", fontSize: 14 }}>Config ready</p>
-                    {activeTransport && (
-                      <p style={{ color: "var(--text-3)", fontSize: 12 }}>via {activeTransport}</p>
+            {(() => {
+              const onSameNode = isConnected && connectedNodeId === selectedNode?.id;
+              const onDiffNode = isConnected && !!selectedNode && connectedNodeId !== selectedNode.id;
+              const disabled = isConnecting || (!isConnected && !selectedNode);
+              return (
+                <div style={{ padding: "32px 24px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+                  <div style={{ position: "relative" }}>
+                    {isConnecting && (
+                      <span className="spin" style={{
+                        position: "absolute", inset: -5, borderRadius: "50%", display: "block",
+                        border: "1.5px solid transparent",
+                        borderTopColor: "var(--text-3)", borderRightColor: "var(--text-3)",
+                      }} />
                     )}
                     <button
-                      onClick={() => setShowConfig(true)}
+                      onClick={toggle}
+                      disabled={disabled}
+                      className={onSameNode ? "glow-green" : ""}
                       style={{
-                        marginTop: 4, padding: "6px 14px", borderRadius: 6, cursor: "pointer",
-                        background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.25)",
-                        color: "var(--green)", fontSize: 12, fontWeight: 600,
+                        width: 88, height: 88, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: disabled ? "not-allowed" : "pointer",
+                        background: onSameNode ? "var(--green)" : "var(--raised)",
+                        border: onSameNode ? "1px solid var(--green)" : "1px solid var(--border)",
+                        transition: "background .2s, border-color .2s",
+                        opacity: disabled ? 0.4 : 1,
                       }}
                     >
-                      Show config →
+                      <Power size={28} strokeWidth={1.8} color={onSameNode ? "#000" : "var(--text-2)"} />
                     </button>
                   </div>
-                ) : (
-                  <p style={{ color: "var(--text-3)", fontSize: 13 }}>
-                    {selectedNode ? "Click to get config" : "Select a server first"}
-                  </p>
-                )}
-              </div>
-            </div>
+
+                  <div style={{ textAlign: "center" }}>
+                    {isConnecting ? (
+                      <p style={{ color: "var(--text-2)", fontSize: 13 }}>Fetching config…</p>
+                    ) : onSameNode ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                        <p style={{ fontWeight: 600, color: "var(--green)", fontSize: 14 }}>Config ready</p>
+                        {activeTransport && (
+                          <p style={{ color: "var(--text-3)", fontSize: 12 }}>via {activeTransport}</p>
+                        )}
+                        <button
+                          onClick={() => setShowConfig(true)}
+                          style={{
+                            marginTop: 4, padding: "6px 14px", borderRadius: 6, cursor: "pointer",
+                            background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.25)",
+                            color: "var(--green)", fontSize: 12, fontWeight: 600,
+                          }}
+                        >
+                          Show config →
+                        </button>
+                      </div>
+                    ) : onDiffNode ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                        <p style={{ color: "var(--text-2)", fontSize: 13 }}>
+                          Click to get {selectedNode!.name}'s config
+                        </p>
+                        <p style={{ color: "var(--text-3)", fontSize: 11 }}>
+                          {activeConfig?.node.name} config active —{" "}
+                          <span
+                            onClick={() => setShowConfig(true)}
+                            style={{ color: "var(--text-2)", cursor: "pointer", textDecoration: "underline" }}
+                          >
+                            view
+                          </span>
+                        </p>
+                      </div>
+                    ) : (
+                      <p style={{ color: "var(--text-3)", fontSize: 13 }}>
+                        {selectedNode ? "Click to get config" : "Select a server first"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ height: 1, background: "var(--border)" }} />
 
