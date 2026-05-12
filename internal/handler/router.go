@@ -84,6 +84,7 @@ func (r *Router) Setup() *gin.Engine {
 		protected.DELETE("/devices/:id",  r.userH.RemoveDevice)
 
 		protected.GET("/nodes",                        r.nodeH.ListNodes)
+		protected.GET("/nodes/connect",               r.nodeH.AutoConnect)
 		protected.GET("/nodes/:id",                    r.nodeH.GetNode)
 		protected.GET("/nodes/:id/connect",            r.nodeH.GetConnectionConfig)
 		protected.GET("/nodes/:id/subscription",       r.subH.GetSubscription)

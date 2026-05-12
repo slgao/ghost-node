@@ -34,6 +34,7 @@ interface VPNState {
   fetchNodes: () => Promise<void>;
   selectNode: (node: Node) => void;
   connect: (nodeId: string) => Promise<void>;
+  connectAuto: () => Promise<void>;
   disconnect: () => void;
   fetchUsage: () => Promise<void>;
 }
@@ -120,6 +121,23 @@ export const useVPNStore = create<VPNState>()(
             isConnected: true,
             isConnecting: false,
             connectedNodeId: nodeId,
+            activeTransport: data.profile.type,
+            activeConfig: data,
+          });
+        } catch (err) {
+          set({ isConnecting: false });
+          throw err;
+        }
+      },
+
+      connectAuto: async () => {
+        set({ isConnecting: true });
+        try {
+          const { data } = await nodesAPI.connectAuto();
+          set({
+            isConnected: true,
+            isConnecting: false,
+            connectedNodeId: data.node.address,
             activeTransport: data.profile.type,
             activeConfig: data,
           });

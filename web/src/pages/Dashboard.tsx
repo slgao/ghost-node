@@ -240,7 +240,7 @@ export default function Dashboard() {
   const {
     user, nodes, selectedNode, isConnected, isConnecting,
     activeTransport, activeConfig, usage, fetchNodes, fetchUsage,
-    selectNode, connect, disconnect, logout,
+    selectNode, connect, connectAuto, disconnect, logout,
   } = useVPNStore();
 
   const [error, setError] = useState("");
@@ -269,6 +269,17 @@ export default function Dashboard() {
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error;
       setError(msg ?? "Failed to fetch config.");
+    }
+  };
+
+  const handleAutoConnect = async () => {
+    if (isConnected) { disconnect(); setShowConfig(false); return; }
+    setError("");
+    try {
+      await connectAuto();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setError(msg ?? "No online servers available.");
     }
   };
 
@@ -479,9 +490,26 @@ export default function Dashboard() {
               justifyContent: "space-between", borderBottom: "1px solid var(--border)", flexShrink: 0,
             }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>Servers</p>
-              <p style={{ fontSize: 12, color: "var(--text-3)" }}>
-                <span style={{ color: "var(--green)" }}>{onlineN}</span> / {nodes.length} online
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+                  <span style={{ color: "var(--green)" }}>{onlineN}</span> / {nodes.length} online
+                </p>
+                <button
+                  onClick={handleAutoConnect}
+                  disabled={isConnecting || onlineN === 0}
+                  style={{
+                    padding: "5px 12px", borderRadius: 6, cursor: isConnecting || onlineN === 0 ? "not-allowed" : "pointer",
+                    background: isConnected ? "rgba(239,68,68,.1)" : "rgba(34,197,94,.1)",
+                    border: `1px solid ${isConnected ? "rgba(239,68,68,.3)" : "rgba(34,197,94,.3)"}`,
+                    color: isConnected ? "var(--red)" : "var(--green)",
+                    fontSize: 12, fontWeight: 600,
+                    opacity: isConnecting || (!isConnected && onlineN === 0) ? 0.4 : 1,
+                    transition: "all .15s",
+                  }}
+                >
+                  {isConnected ? "Disconnect" : "Auto-select best"}
+                </button>
+              </div>
             </div>
 
             <div style={{ flex: 1, overflowY: "auto" }}>

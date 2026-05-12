@@ -84,6 +84,29 @@ func (h *NodeHandler) GetConnectionConfig(c *gin.Context) {
 	})
 }
 
+// AutoConnect selects the least-loaded online node and returns its connection config.
+// GET /api/v1/nodes/connect
+func (h *NodeHandler) AutoConnect(c *gin.Context) {
+	uid := auth.UserIDFromContext(c)
+	if err := h.trafficSvc.CheckQuota(c.Request.Context(), uid); err != nil {
+		c.JSON(http.StatusPaymentRequired, gin.H{"error": err.Error()})
+		return
+	}
+
+	node, profile, err := h.nodeSvc.SelectBestNode(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
+	}
+
+	uri := buildClientURI(node, profile)
+	c.JSON(http.StatusOK, gin.H{
+		"profile":   profile,
+		"vless_uri": uri,
+		"node":      gin.H{"name": node.Name, "address": node.Address, "region": node.Region},
+	})
+}
+
 // ─── Admin endpoints ──────────────────────────────────────────────────────────
 
 // CreateNode registers a new VPN node (admin only).

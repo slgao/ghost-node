@@ -125,6 +125,7 @@ export const nodesAPI = {
   list: () => getClient().get<{ nodes: Node[] }>("/nodes"),
   get: (id: string) => getClient().get<{ node: Node }>(`/nodes/${id}`),
   connect: (id: string) => getClient().get<ConnectResult>(`/nodes/${id}/connect`),
+  connectAuto: () => getClient().get<ConnectResult>("/nodes/connect"),
   subscription: (id: string) =>
     getClient().get<SubscriptionResult>(`/nodes/${id}/subscription?format=all`),
 };
