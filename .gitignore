@@ -33,6 +33,7 @@ vless_uri.png
 
 # Local scratch / reference images
 UI.png
+prompt.txt
 
 # Docker volumes (if bind-mounted)
 data/
