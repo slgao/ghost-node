@@ -64,7 +64,7 @@ Copy to server once, then run any command:
 
 ```bash
 scp scripts/manage-server.sh oracle-vpn:/tmp/manage-server.sh
-ssh oracle-vpn
+ssh oracle-vpn   # or: ssh user@YOUR_SERVER_IP
 ```
 
 | Command | What it does |
@@ -193,6 +193,21 @@ bash scripts/verify.sh
 ---
 
 ## Quick Start — Personal VPN
+
+### 0. Set up SSH access to your server
+
+`oracle-vpn` used throughout this guide is a convenience alias — set it once so you don't type the IP every time:
+
+```bash
+# Add this to ~/.ssh/config (create the file if it doesn't exist)
+Host oracle-vpn
+    HostName YOUR_SERVER_IP        # e.g. 1.2.3.4
+    User ubuntu                    # or root, depending on your provider
+    IdentityFile ~/.ssh/id_rsa     # path to your private key
+    ServerAliveInterval 60
+```
+
+After saving, `ssh oracle-vpn` and `scp ... oracle-vpn:...` will work anywhere in this guide. You can also skip the alias entirely and replace every `oracle-vpn` occurrence with `user@YOUR_SERVER_IP` directly.
 
 ### 1. Provision a server
 
@@ -402,6 +417,6 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 After running `setup-server.sh`, all credentials are saved on the server at `/root/vpn-server-credentials.env` (chmod 600). Retrieve them any time:
 
 ```bash
-ssh oracle-vpn
+ssh oracle-vpn   # or: ssh user@YOUR_SERVER_IP
 sudo bash /tmp/manage-server.sh credentials
 ```

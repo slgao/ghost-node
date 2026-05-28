@@ -18,7 +18,17 @@
 ssh oracle-vpn
 ```
 
-Your SSH config (`~/.ssh/config`) already has the IP and key path set up. If it stops working, check the IP in the Oracle Cloud console and update `~/.ssh/config`.
+`oracle-vpn` is an SSH alias defined in `~/.ssh/config`. If you haven't set it up yet:
+
+```
+# ~/.ssh/config
+Host oracle-vpn
+    HostName YOUR_SERVER_IP
+    User ubuntu
+    IdentityFile ~/.ssh/id_rsa
+```
+
+If it stops working, check the current IP in the Oracle Cloud console and update `HostName` in `~/.ssh/config`.
 
 ---
 
