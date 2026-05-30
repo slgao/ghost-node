@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# setup-mac-vpn.sh — Connect your Mac directly to the Oracle VPN server.
+# vpn.sh — Connect to the Oracle VPN server (Linux & macOS).
 #
 # Pulls credentials from the server, generates a VLESS+REALITY client config,
-# runs the Xray client in Docker, and configures the Mac system proxy.
+# runs the Xray client in Docker, and configures the system proxy.
 #
-# Usage (on your Mac):
-#   bash scripts/setup-mac-vpn.sh [start|stop|status]
+# Usage:
+#   bash scripts/vpn.sh [start|stop|status]
 
 set -euo pipefail
 
 SSH_HOST="${VPN_SSH_HOST:-ghost-node-jp1}"
 SOCKS_PORT="10808"
 HTTP_PORT="10809"
-CONFIG_FILE="$HOME/.vpn/xray-mac-client.json"
+CONFIG_FILE="$HOME/.vpn/xray-client.json"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'; BOLD='\033[1m'
 info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
@@ -24,24 +24,37 @@ CMD="${1:-start}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-get_wifi_service() {
-  networksetup -listallnetworkservices 2>/dev/null | grep -iE "wi-fi|wifi|airport" | head -1
-}
-
 set_proxy() {
-  local service; service=$(get_wifi_service)
-  [[ -z "$service" ]] && { warn "No Wi-Fi service found — set proxy manually"; return; }
-  networksetup -setsocksfirewallproxy    "$service" 127.0.0.1 "$SOCKS_PORT"
-  networksetup -setsocksfirewallproxystate "$service" on
-  networksetup -setproxybypassdomains    "$service" "localhost" "127.0.0.1" "192.168.*" "10.*"
-  success "Mac system SOCKS5 proxy set → 127.0.0.1:$SOCKS_PORT (service: $service)"
+  if command -v gsettings &>/dev/null; then
+    gsettings set org.gnome.system.proxy mode 'manual'
+    gsettings set org.gnome.system.proxy.socks host '127.0.0.1'
+    gsettings set org.gnome.system.proxy.socks port "$SOCKS_PORT"
+    gsettings set org.gnome.system.proxy ignore-hosts "['localhost', '127.0.0.1', '192.168.*', '10.*']"
+    success "System proxy set → 127.0.0.1:$SOCKS_PORT (Firefox will update live)"
+  elif command -v networksetup &>/dev/null; then
+    local service
+    service=$(networksetup -listallnetworkservices 2>/dev/null | grep -iE "wi-fi|wifi|airport" | head -1)
+    [[ -z "$service" ]] && { warn "No Wi-Fi service found — set proxy manually"; return; }
+    networksetup -setsocksfirewallproxy      "$service" 127.0.0.1 "$SOCKS_PORT"
+    networksetup -setsocksfirewallproxystate "$service" on
+    networksetup -setproxybypassdomains      "$service" "localhost" "127.0.0.1" "192.168.*" "10.*"
+    success "System SOCKS5 proxy set → 127.0.0.1:$SOCKS_PORT (service: $service)"
+  else
+    warn "No proxy manager found — set SOCKS5 127.0.0.1:$SOCKS_PORT manually"
+  fi
 }
 
 clear_proxy() {
-  local service; service=$(get_wifi_service)
-  [[ -z "$service" ]] && return
-  networksetup -setsocksfirewallproxystate "$service" off
-  success "Mac system proxy cleared"
+  if command -v gsettings &>/dev/null; then
+    gsettings set org.gnome.system.proxy mode 'none'
+    success "System proxy cleared (Firefox updated live)"
+  elif command -v networksetup &>/dev/null; then
+    local service
+    service=$(networksetup -listallnetworkservices 2>/dev/null | grep -iE "wi-fi|wifi|airport" | head -1)
+    [[ -z "$service" ]] && return
+    networksetup -setsocksfirewallproxystate "$service" off
+    success "System proxy cleared"
+  fi
 }
 
 # ── Start ─────────────────────────────────────────────────────────────────────
@@ -53,7 +66,7 @@ cmd_start() {
   echo ""
 
   # Stop any existing instance and free the ports
-  docker rm -f vpn-mac-client 2>/dev/null || true
+  docker rm -f vpn-client 2>/dev/null || true
 
   # Stop any docker-compose tunnel-test containers using the same ports
   docker compose --profile tunnel-test down 2>/dev/null || true
@@ -149,7 +162,7 @@ JSON
   # Start Xray client in Docker
   info "Starting Xray client container..."
   docker run -d \
-    --name vpn-mac-client \
+    --name vpn-client \
     --restart unless-stopped \
     -v "$CONFIG_FILE:/etc/xray/config.json:ro" \
     -p "127.0.0.1:${SOCKS_PORT}:${SOCKS_PORT}" \
@@ -165,11 +178,11 @@ JSON
   if [[ -n "$TUNNEL_IP" ]]; then
     success "Tunnel working — exit IP: $TUNNEL_IP"
   else
-    warn "Tunnel test failed — check: docker logs vpn-mac-client"
+    warn "Tunnel test failed — check: docker logs vpn-client"
   fi
 
   # Set system proxy
-  info "Configuring Mac system proxy..."
+  info "Configuring system proxy..."
   set_proxy
 
   echo ""
@@ -182,14 +195,14 @@ JSON
   echo -e "  ${BOLD}HTTP proxy:${NC}    127.0.0.1:$HTTP_PORT"
   echo ""
   echo -e "  Verify: open ${CYAN}https://ip.sb${NC} in your browser"
-  echo -e "  Stop:   ${CYAN}bash scripts/setup-mac-vpn.sh stop${NC}"
+  echo -e "  Stop:   ${CYAN}bash scripts/vpn.sh stop${NC}"
   echo ""
 }
 
 # ── Stop ──────────────────────────────────────────────────────────────────────
 cmd_stop() {
   info "Stopping VPN client..."
-  docker rm -f vpn-mac-client 2>/dev/null && success "Container stopped" || warn "Container was not running"
+  docker rm -f vpn-client 2>/dev/null && success "Container stopped" || warn "Container was not running"
   clear_proxy
   echo ""
   echo -e "${BOLD}VPN disconnected.${NC}"
@@ -199,14 +212,14 @@ cmd_stop() {
 # ── Status ────────────────────────────────────────────────────────────────────
 cmd_status() {
   echo ""
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "vpn-mac-client"; then
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "vpn-client"; then
     success "VPN client is running"
     TUNNEL_IP=$(curl -s --max-time 8 --proxy socks5h://127.0.0.1:$SOCKS_PORT https://ifconfig.me 2>/dev/null || echo "unreachable")
     echo -e "  Exit IP: ${CYAN}$TUNNEL_IP${NC}"
     echo -e "  SOCKS5:  127.0.0.1:$SOCKS_PORT"
   else
     warn "VPN client is NOT running"
-    echo -e "  Start:  ${CYAN}bash scripts/setup-mac-vpn.sh start${NC}"
+    echo -e "  Start:  ${CYAN}bash scripts/vpn.sh start${NC}"
   fi
 
   echo -e "  Verify in browser: ${CYAN}https://ip.sb${NC} should show the exit IP above"
@@ -219,7 +232,8 @@ case "$CMD" in
   stop)   cmd_stop   ;;
   status) cmd_status ;;
   *)
-    echo "Usage: bash scripts/setup-mac-vpn.sh [start|stop|status]"
+    echo "Usage: bash scripts/vpn.sh [start|stop|status]"
+    echo "Usage: bash scripts/vpn.sh [start|stop|status]"
     exit 1
     ;;
 esac

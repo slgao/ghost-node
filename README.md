@@ -89,21 +89,21 @@ ssh ghost-node   # or: ssh user@YOUR_SERVER_IP
 
 ---
 
-### `setup-mac-vpn.sh` — Connect your Mac to the VPN
+### `vpn.sh` — Connect to the VPN (Linux & macOS)
 
-Runs on your Mac. Automatically fetches credentials from the server, starts an Xray client in Docker, and configures the system proxy.
+Fetches credentials from the server, starts an Xray client in Docker, and configures the system proxy. Works on Linux (gsettings) and macOS (networksetup).
 
-Requires: Docker Desktop running on your Mac, SSH access to the server configured in `~/.ssh/config`.
+Requires: Docker running, SSH access to the server configured in `~/.ssh/config`.
 
 ```bash
-bash scripts/setup-mac-vpn.sh start    # connect — sets system proxy automatically
-bash scripts/setup-mac-vpn.sh stop     # disconnect
-bash scripts/setup-mac-vpn.sh status   # show exit IP and tunnel state
+bash scripts/vpn.sh start    # connect — sets system proxy automatically
+bash scripts/vpn.sh stop     # disconnect
+bash scripts/vpn.sh status   # show exit IP and tunnel state
 ```
 
 Verify it's working: open `https://ip.sb` in your browser — it should show your server's IP.
 
-> **Note:** All browser and app traffic on your Mac routes through the VPN tunnel while connected.
+> **Note:** On Linux, Firefox is automatically routed through the VPN when connected (uses system proxy). On macOS, all system traffic routes through the tunnel.
 
 ---
 
@@ -236,10 +236,10 @@ ssh ghost-node
 sudo bash /tmp/manage-server.sh save-fw
 ```
 
-### 3. Connect your Mac
+### 3. Connect your device
 
 ```bash
-bash scripts/setup-mac-vpn.sh start
+bash scripts/vpn.sh start
 ```
 
 ### 4. Connect your phone
@@ -399,7 +399,7 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 │   ├── deploy-control-plane.sh # Deploy control plane on Ubuntu VPS with TLS
 │   ├── setup-server.sh         # Deploy Xray on a VPN node VPS
 │   ├── manage-server.sh        # Server status, restart, credentials, firewall
-│   ├── setup-mac-vpn.sh        # Connect Mac to VPN via Docker + system proxy
+│   ├── vpn.sh                  # Connect to VPN via Docker + system proxy (Linux & macOS)
 │   ├── add-node.sh             # Register a new server node in the database
 │   ├── view-vpn-report.sh      # Pull traffic report from server, open in browser
 │   ├── analyze-vpn-traffic.sh  # Run on server: parse logs, generate HTML report
