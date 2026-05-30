@@ -1,6 +1,16 @@
-# VPN Platform
+<p align="center">
+  <img src="web/public/icon.svg" width="96" height="96" alt="Ghost Node" />
+</p>
 
-A censorship-resistant VPN platform built on [Xray-core](https://github.com/XTLS/Xray-core), supporting VLESS+REALITY, VLESS+WebSocket+TLS, and Hysteria2. Includes a Go control plane, node management API, Prometheus/Grafana monitoring, and client subscription endpoints.
+<h1 align="center">Ghost Node</h1>
+
+<p align="center">
+  A censorship-resistant VPN platform built on <a href="https://github.com/XTLS/Xray-core">Xray-core</a>.<br/>
+  VLESS+REALITY · VLESS+WebSocket+TLS · Hysteria2<br/>
+  Go control plane · Node management API · Prometheus/Grafana · Client subscription endpoints
+</p>
+
+---
 
 ## Architecture
 
