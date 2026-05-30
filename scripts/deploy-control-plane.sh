@@ -2,10 +2,10 @@
 # deploy-control-plane.sh — Install the VPN control plane + web portal on a fresh Ubuntu 22.04 VPS.
 #
 # Usage (run as root on the target server):
-#   curl -sSL https://raw.githubusercontent.com/slgao/oracle-vpn/main/scripts/deploy-control-plane.sh | \
+#   curl -sSL https://raw.githubusercontent.com/slgao/ghost-node/main/scripts/deploy-control-plane.sh | \
 #     DOMAIN=vpn.yourdomain.com \
 #     EMAIL=you@example.com \
-#     GITHUB_REPO=https://github.com/slgao/oracle-vpn \
+#     GITHUB_REPO=https://github.com/slgao/ghost-node \
 #     bash
 #
 # Or copy and run interactively:
@@ -17,7 +17,7 @@ set -euo pipefail
 
 DOMAIN="${DOMAIN:-}"
 EMAIL="${EMAIL:-}"
-GITHUB_REPO="${GITHUB_REPO:-https://github.com/slgao/oracle-vpn}"
+GITHUB_REPO="${GITHUB_REPO:-https://github.com/slgao/ghost-node}"
 APP_DIR="${APP_DIR:-/opt/vpnplatform}"
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 16)}"
 

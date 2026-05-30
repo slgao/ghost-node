@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-SSH_HOST="${VPN_SSH_HOST:-oracle-vpn}"
+SSH_HOST="${VPN_SSH_HOST:-ghost-node}"
 SOCKS_PORT="10808"
 HTTP_PORT="10809"
 CONFIG_FILE="$HOME/.vpn/xray-mac-client.json"

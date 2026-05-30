@@ -63,8 +63,8 @@ What it does:
 Copy to server once, then run any command:
 
 ```bash
-scp scripts/manage-server.sh oracle-vpn:/tmp/manage-server.sh
-ssh oracle-vpn   # or: ssh user@YOUR_SERVER_IP
+scp scripts/manage-server.sh ghost-node:/tmp/manage-server.sh
+ssh ghost-node   # or: ssh user@YOUR_SERVER_IP
 ```
 
 | Command | What it does |
@@ -196,33 +196,33 @@ bash scripts/verify.sh
 
 ### 0. Set up SSH access to your server
 
-`oracle-vpn` used throughout this guide is a convenience alias — set it once so you don't type the IP every time:
+`ghost-node` used throughout this guide is a convenience alias — set it once so you don't type the IP every time:
 
 ```bash
 # Add this to ~/.ssh/config (create the file if it doesn't exist)
-Host oracle-vpn
+Host ghost-node
     HostName YOUR_SERVER_IP        # e.g. 1.2.3.4
     User ubuntu                    # or root, depending on your provider
     IdentityFile ~/.ssh/id_rsa     # path to your private key
     ServerAliveInterval 60
 ```
 
-After saving, `ssh oracle-vpn` and `scp ... oracle-vpn:...` will work anywhere in this guide. You can also skip the alias entirely and replace every `oracle-vpn` occurrence with `user@YOUR_SERVER_IP` directly.
+After saving, `ssh ghost-node` and `scp ... ghost-node:...` will work anywhere in this guide. You can also skip the alias entirely and replace every `ghost-node` occurrence with `user@YOUR_SERVER_IP` directly.
 
 ### 1. Provision a server
 
 Any Ubuntu 22.04 VPS works. Oracle Cloud Always Free (Tokyo/Singapore) is recommended.
 
 ```bash
-scp scripts/setup-server.sh oracle-vpn:/tmp/
-ssh oracle-vpn
+scp scripts/setup-server.sh ghost-node:/tmp/
+ssh ghost-node
 sudo bash /tmp/setup-server.sh
 ```
 
 ### 2. Save firewall rules (do once after setup)
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo bash /tmp/manage-server.sh save-fw
 ```
 
@@ -417,6 +417,6 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 After running `setup-server.sh`, all credentials are saved on the server at `/root/vpn-server-credentials.env` (chmod 600). Retrieve them any time:
 
 ```bash
-ssh oracle-vpn   # or: ssh user@YOUR_SERVER_IP
+ssh ghost-node   # or: ssh user@YOUR_SERVER_IP
 sudo bash /tmp/manage-server.sh credentials
 ```

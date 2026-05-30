@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **IP** | see `~/.ssh/config` → `oracle-vpn` host |
+| **IP** | see `~/.ssh/config` → `ghost-node` host |
 | **Provider** | Oracle Cloud (Always Free) |
 | **Protocol** | VLESS + REALITY |
 | **Port** | 443 |
@@ -15,14 +15,14 @@
 ## Connecting to the Server
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 ```
 
-`oracle-vpn` is an SSH alias defined in `~/.ssh/config`. If you haven't set it up yet:
+`ghost-node` is an SSH alias defined in `~/.ssh/config`. If you haven't set it up yet:
 
 ```
 # ~/.ssh/config
-Host oracle-vpn
+Host ghost-node
     HostName YOUR_SERVER_IP
     User ubuntu
     IdentityFile ~/.ssh/id_rsa
@@ -37,13 +37,13 @@ If it stops working, check the current IP in the Oracle Cloud console and update
 All common tasks are handled by `manage-server.sh`. Copy it to the server first:
 
 ```bash
-scp /Users/apple/Projects/go/VPN/scripts/manage-server.sh oracle-vpn:/tmp/manage-server.sh
+scp scripts/manage-server.sh ghost-node:/tmp/manage-server.sh
 ```
 
 Then SSH in and run any command:
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo bash /tmp/manage-server.sh <command>
 ```
 
@@ -70,7 +70,7 @@ sudo bash /tmp/manage-server.sh <command>
 Oracle Cloud Ubuntu images ship with an iptables `REJECT` rule that blocks all inbound ports except SSH, sitting above UFW's rules. The updated `setup-server.sh` removes it automatically. If you provisioned a node with an older version of the script, fix it manually:
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited
 ```
 
@@ -92,7 +92,7 @@ sudo bash /tmp/manage-server.sh save-fw
 ### VPN stopped working
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo bash /tmp/manage-server.sh status
 sudo bash /tmp/manage-server.sh restart
 ```
@@ -102,7 +102,7 @@ sudo bash /tmp/manage-server.sh restart
 Oracle's iptables rules reset on reboot unless saved. Fix:
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo bash /tmp/manage-server.sh fix-fw
 ```
 
@@ -115,7 +115,7 @@ sudo bash /tmp/manage-server.sh save-fw
 ### Need your VLESS URI again (lost it / new phone)
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo bash /tmp/manage-server.sh credentials
 ```
 
@@ -124,7 +124,7 @@ Copy the `vless://` URI and import it into your client app.
 ### Check Xray logs for errors
 
 ```bash
-ssh oracle-vpn
+ssh ghost-node
 sudo bash /tmp/manage-server.sh logs
 ```
 

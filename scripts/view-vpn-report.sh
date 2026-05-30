@@ -13,7 +13,7 @@
 set -euo pipefail
 
 HOURS="${VPN_HOURS:-24}"
-SSH_HOST="${VPN_SSH_HOST:-oracle-vpn}"
+SSH_HOST="${VPN_SSH_HOST:-ghost-node}"
 LOCAL_OUT="${VPN_LOCAL_OUT:-$HOME/Desktop/vpn-report.html}"
 
 while [[ $# -gt 0 ]]; do
