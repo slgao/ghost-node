@@ -305,8 +305,9 @@ export default function Dashboard() {
           borderBottom: "1px solid var(--border)", background: "var(--surface)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <img src="/icon.svg" alt="Ghost Node" style={{ width: 26, height: 26, borderRadius: 6 }} />
             <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-1)" }}>
-              VPN Platform
+              Ghost Node
             </span>
             {user?.role === "admin" && (
               <span style={{

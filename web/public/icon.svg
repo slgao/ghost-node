@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- DESIGN 4: Minimal Flat — clean two-tone geometric ghost, no gradients -->
+  <defs>
+    <clipPath id="clip4">
+      <rect width="512" height="512" rx="96"/>
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="#1a1a2e"/>
+
+  <!-- Ghost body — flat white -->
+  <path d="
+    M256 90
+    C168 90 108 154 108 238
+    L108 400
+    Q108 418 124 408
+    L152 392
+    Q168 382 184 392
+    L212 408
+    Q228 418 242 408
+    L256 400
+    L270 408
+    Q284 418 300 408
+    L328 392
+    Q344 382 360 392
+    L388 408
+    Q404 418 404 400
+    L404 238
+    C404 154 344 90 256 90 Z
+  " fill="#f0f0ff"/>
+
+  <!-- Eyes — dark cutouts -->
+  <circle cx="210" cy="238" r="22" fill="#1a1a2e"/>
+  <circle cx="302" cy="238" r="22" fill="#1a1a2e"/>
+
+  <!-- Eye pupils — accent color -->
+  <circle cx="210" cy="238" r="10" fill="#7c6fff"/>
+  <circle cx="302" cy="238" r="10" fill="#7c6fff"/>
+
+  <!-- Three node dots on bottom wavy edge -->
+  <circle cx="184" cy="392" r="8" fill="#7c6fff"/>
+  <circle cx="256" cy="400" r="8" fill="#7c6fff"/>
+  <circle cx="328" cy="392" r="8" fill="#7c6fff"/>
+
+  <!-- Small connection lines between nodes -->
+  <line x1="184" y1="392" x2="256" y2="400" stroke="#7c6fff" stroke-width="2.5"/>
+  <line x1="256" y1="400" x2="328" y2="392" stroke="#7c6fff" stroke-width="2.5"/>
+</svg>
