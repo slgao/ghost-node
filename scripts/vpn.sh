@@ -13,6 +13,8 @@ SSH_HOST="${VPN_SSH_HOST:-ghost-node-jp1}"
 SOCKS_PORT="10808"
 HTTP_PORT="10809"
 CONFIG_FILE="$HOME/.vpn/xray-client.json"
+XRAY_BIN="$HOME/.vpn/xray"
+XRAY_PID_FILE="$HOME/.vpn/xray.pid"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'; BOLD='\033[1m'
 info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
@@ -65,11 +67,13 @@ cmd_start() {
   echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
 
-  # Stop any existing instance and free the ports
+  # Stop any existing xray client instance
+  if [[ -f "$XRAY_PID_FILE" ]]; then
+    kill "$(cat "$XRAY_PID_FILE")" 2>/dev/null || true
+    rm -f "$XRAY_PID_FILE"
+  fi
+  # Also kill any stray Docker-based vpn-client from previous runs
   docker rm -f vpn-client 2>/dev/null || true
-
-  # Stop any docker-compose tunnel-test containers using the same ports
-  docker compose --profile tunnel-test down 2>/dev/null || true
 
   # Kill any other process holding port 10808 or 10809
   for port in $SOCKS_PORT $HTTP_PORT; do
@@ -159,17 +163,22 @@ JSON
 
   success "Client config written to $CONFIG_FILE"
 
-  # Start Xray client in Docker
-  info "Starting Xray client container..."
-  docker run -d \
-    --name vpn-client \
-    --restart unless-stopped \
-    -v "$CONFIG_FILE:/etc/xray/config.json:ro" \
-    -p "127.0.0.1:${SOCKS_PORT}:${SOCKS_PORT}" \
-    -p "127.0.0.1:${HTTP_PORT}:${HTTP_PORT}" \
-    $(docker build -q -f "$(dirname "$0")/../deployments/docker/Dockerfile.xray" "$(dirname "$0")/..") \
-    /etc/xray/config.json > /dev/null
+  # Download xray binary from server; re-download if version differs from server
+  mkdir -p "$HOME/.vpn"
+  SERVER_VER=$(ssh "$SSH_HOST" "/usr/local/xray/xray version 2>/dev/null | head -1 | awk '{print \$2}'" 2>/dev/null || echo "")
+  CLIENT_VER=$("$XRAY_BIN" version 2>/dev/null | head -1 | awk '{print $2}' 2>/dev/null || echo "")
+  if [[ ! -x "$XRAY_BIN" ]] || [[ -n "$SERVER_VER" && "$SERVER_VER" != "$CLIENT_VER" ]]; then
+    info "Downloading xray binary from $SSH_HOST (server: $SERVER_VER, local: ${CLIENT_VER:-none})..."
+    scp "$SSH_HOST:/usr/local/xray/xray" "$XRAY_BIN" \
+      || die "Could not copy xray from server — check SSH access to $SSH_HOST"
+    chmod +x "$XRAY_BIN"
+    success "xray binary ready at $XRAY_BIN (v${SERVER_VER})"
+  fi
 
+  # Start xray client in background
+  info "Starting xray client..."
+  "$XRAY_BIN" run -c "$CONFIG_FILE" > "$HOME/.vpn/xray-client.log" 2>&1 &
+  echo $! > "$XRAY_PID_FILE"
   sleep 3
 
   # Test the tunnel
@@ -178,7 +187,7 @@ JSON
   if [[ -n "$TUNNEL_IP" ]]; then
     success "Tunnel working — exit IP: $TUNNEL_IP"
   else
-    warn "Tunnel test failed — check: docker logs vpn-client"
+    warn "Tunnel test failed — check logs: $HOME/.vpn/xray-client.log"
   fi
 
   # Set system proxy
@@ -202,7 +211,13 @@ JSON
 # ── Stop ──────────────────────────────────────────────────────────────────────
 cmd_stop() {
   info "Stopping VPN client..."
-  docker rm -f vpn-client 2>/dev/null && success "Container stopped" || warn "Container was not running"
+  if [[ -f "$XRAY_PID_FILE" ]]; then
+    kill "$(cat "$XRAY_PID_FILE")" 2>/dev/null && success "xray stopped" || warn "xray was not running"
+    rm -f "$XRAY_PID_FILE"
+  else
+    warn "No xray PID file found"
+  fi
+  docker rm -f vpn-client 2>/dev/null || true
   clear_proxy
   echo ""
   echo -e "${BOLD}VPN disconnected.${NC}"
@@ -212,8 +227,8 @@ cmd_stop() {
 # ── Status ────────────────────────────────────────────────────────────────────
 cmd_status() {
   echo ""
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "vpn-client"; then
-    success "VPN client is running"
+  if [[ -f "$XRAY_PID_FILE" ]] && kill -0 "$(cat "$XRAY_PID_FILE")" 2>/dev/null; then
+    success "VPN client is running (PID $(cat "$XRAY_PID_FILE"))"
     TUNNEL_IP=$(curl -s --max-time 8 --proxy socks5h://127.0.0.1:$SOCKS_PORT https://ifconfig.me 2>/dev/null || echo "unreachable")
     echo -e "  Exit IP: ${CYAN}$TUNNEL_IP${NC}"
     echo -e "  SOCKS5:  127.0.0.1:$SOCKS_PORT"

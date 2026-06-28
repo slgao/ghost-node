@@ -16,10 +16,10 @@ set -euo pipefail
 # ── Config (override via env) ──────────────────────────────────────────────
 CONTROL_PLANE="${CONTROL_PLANE:-http://localhost:8080}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-}"
-XRAY_VERSION="${XRAY_VERSION:-1.8.11}"
+XRAY_VERSION="${XRAY_VERSION:-26.3.27}"
 AGENT_VERSION="${AGENT_VERSION:-latest}"
 VLESS_PORT="${VLESS_PORT:-443}"
-CAMOUFLAGE_DOMAIN="${CAMOUFLAGE_DOMAIN:-www.microsoft.com}"  # impersonated domain for REALITY
+CAMOUFLAGE_DOMAIN="${CAMOUFLAGE_DOMAIN:-www.apple.com}"  # impersonated domain for REALITY (apple.com is more permissive than microsoft.com with xray's uTLS chrome fingerprint)
 
 # ── Colours ────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'; BOLD='\033[1m'
@@ -68,12 +68,15 @@ success "Firewall configured (ports: 22, $VLESS_PORT/tcp, 8443/tcp, 443/udp)"
 
 # Oracle Cloud Ubuntu images ship with a hard REJECT rule in iptables that sits
 # above UFW's chains and blocks all new inbound connections except port 22.
-# Remove it so UFW's rules take effect immediately without requiring a reboot.
+# Remove it and persist the change so reboots don't bring it back.
 if iptables -L INPUT -n | grep -q "reject-with icmp-host-prohibited"; then
-  # Delete every REJECT rule in INPUT (there is usually exactly one)
   while iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null; do :; done
   success "Removed Oracle default REJECT rule from iptables INPUT chain"
 fi
+# Persist iptables so the REJECT rule can't come back after reboot.
+apt-get install -y -qq iptables-persistent
+netfilter-persistent save
+success "iptables rules persisted (Oracle REJECT rule will not return after reboot)"
 
 # ── 2. Install Xray ────────────────────────────────────────────────────────
 XRAY_DIR="/usr/local/xray"
@@ -135,11 +138,11 @@ cat > "$XRAY_CONFIG_DIR/config.json" <<EOF
         "network": "tcp",
         "security": "reality",
         "realitySettings": {
+          "show": false,
           "dest": "$CAMOUFLAGE_DOMAIN:443",
           "serverNames": ["$CAMOUFLAGE_DOMAIN"],
           "privateKey": "$REALITY_PRIVATE_KEY",
-          "shortIds": ["$REALITY_SHORT_ID"],
-          "fingerprint": "chrome"
+          "shortIds": ["$REALITY_SHORT_ID"]
         }
       },
       "sniffing": {
