@@ -1,0 +1,69 @@
+# ghostctl — public IP rotation for Ghost Node VPN servers.
+#
+# Copy to ~/.ghostctl/config.yaml and fill in. ${VARS} are expanded from the
+# environment, so tokens can stay out of the file.
+#
+#   cp configs/ghostctl.example.yaml ~/.ghostctl/config.yaml
+#   chmod 600 ~/.ghostctl/config.yaml
+
+# ── Oracle Cloud ────────────────────────────────────────────────────────────
+# Easiest path: run `oci setup config` once and leave this section as-is —
+# ghostctl reads ~/.oci/config. The API key needs a policy allowing
+# manage public-ips, use private-ips, read instance-family and read vnics
+# in the compartment holding your nodes.
+oracle:
+  config_file: ~/.oci/config
+  profile: DEFAULT
+
+  # Or set credentials inline instead (these win over config_file):
+  # tenancy_ocid: ocid1.tenancy.oc1..aaaa
+  # user_ocid: ocid1.user.oc1..aaaa
+  # fingerprint: "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+  # region: ap-tokyo-1
+  # private_key_path: ~/.oci/oci_api_key.pem
+
+# ── Cloudflare DNS (optional, strongly recommended) ─────────────────────────
+# Pointing clients at a hostname instead of a raw IP is what makes rotation
+# invisible — the A record changes, client configs do not. The token needs only
+# Zone:DNS:Edit. Leave api_token empty to skip DNS updates entirely.
+cloudflare:
+  api_token: ${CLOUDFLARE_API_TOKEN}
+  zone_id: ""   # optional — looked up from the record name when empty
+  ttl: 60
+
+# ── Control plane (optional) ────────────────────────────────────────────────
+# When set, ghostctl PUTs the new address so the portal, subscriptions and
+# generated VLESS URIs stay correct.
+control_plane:
+  url: ""       # e.g. https://vpn.yourdomain.com
+  admin_token: ${GHOST_ADMIN_TOKEN}
+
+# ── Rotation behaviour ──────────────────────────────────────────────────────
+rotate:
+  # Addresses to draw before settling. Oracle's regional pool contains plenty
+  # of already-blocked addresses, so one draw is often not enough.
+  attempts: 3
+  # Verify each new address with a TCP handshake before keeping it. Run
+  # ghostctl from inside the censored network for this to mean anything.
+  probe: true
+  probe_timeout: 6s
+  probe_attempts: 2
+  # How long a failed address (and its /24 neighbours) is avoided.
+  burn_window: 720h
+  burned_store: ~/.ghostctl/burned.json
+
+# ── Nodes ───────────────────────────────────────────────────────────────────
+# instance_ocid comes from the OCI console: Compute → Instances → your instance
+# → OCID. Everything else is optional.
+nodes:
+  - name: jp1
+    instance_ocid: ocid1.instance.oc1.ap-tokyo-1.aaaaaaaa
+    dns_record: n1.yourdomain.com   # repointed after each rotation
+    ssh_host: ghost-node-jp1        # ~/.ssh/config Host alias to keep current
+    node_id: ""                     # control-plane node UUID
+    probe_port: 443
+
+  # - name: jp2
+  #   instance_ocid: ocid1.instance.oc1.ap-tokyo-1.bbbbbbbb
+  #   dns_record: n2.yourdomain.com
+  #   ssh_host: ghost-node-jp2

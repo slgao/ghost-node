@@ -197,3 +197,29 @@ func (h *NodeHandler) AddTransportProfile(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, gin.H{"profile": tp})
 }
+
+// UpdateNodeAddress repoints a node at a new host or IP (admin only).
+// Used by ghostctl after a public IP rotation.
+// PUT /api/v1/admin/nodes/:id/address
+func (h *NodeHandler) UpdateNodeAddress(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid node id"})
+		return
+	}
+
+	var req struct {
+		Address string `json:"address" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	node, err := h.nodeSvc.UpdateAddress(c.Request.Context(), id, req.Address)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"node": node})
+}

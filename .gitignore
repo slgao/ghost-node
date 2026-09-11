@@ -28,6 +28,8 @@ coverage.html
 # Sensitive local files — never commit
 vless_uri.txt
 vless_uri.png
+ghostctl.yaml
+configs/ghostctl.yaml
 *.~undo-tree~
 .env
 

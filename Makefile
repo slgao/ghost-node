@@ -1,8 +1,9 @@
-.PHONY: dev build proto lint test clean docker-up docker-down help
+.PHONY: dev build ghostctl proto lint test clean docker-up docker-down help
 
 MODULE := github.com/vpnplatform/core
 CONTROL_PLANE_BIN := bin/control-plane
 NODE_AGENT_BIN    := bin/node-agent
+GHOSTCTL_BIN      := bin/ghostctl
 PROTO_DIR         := api/proto
 PROTO_OUT         := internal/grpc/proto
 
@@ -19,10 +20,16 @@ logs: ## Tail all service logs
 
 ## ─── Build ──────────────────────────────────────────────────────────────────
 
-build: proto ## Build both binaries (requires local Go)
+build: proto ## Build all binaries (requires local Go)
 	@mkdir -p bin
 	go build -ldflags="-s -w" -o $(CONTROL_PLANE_BIN) ./cmd/control-plane
 	go build -ldflags="-s -w" -o $(NODE_AGENT_BIN)    ./cmd/node-agent
+	go build -ldflags="-s -w" -o $(GHOSTCTL_BIN)      ./cmd/ghostctl
+
+ghostctl: ## Build just the ghostctl CLI (no protoc needed)
+	@mkdir -p bin
+	go build -ldflags="-s -w" -o $(GHOSTCTL_BIN) ./cmd/ghostctl
+	@echo "built $(GHOSTCTL_BIN)"
 
 ## ─── Protobuf ───────────────────────────────────────────────────────────────
 

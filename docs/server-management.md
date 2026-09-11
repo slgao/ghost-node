@@ -28,7 +28,11 @@ Host ghost-node
     IdentityFile ~/.ssh/id_rsa
 ```
 
-If it stops working, check the current IP in the Oracle Cloud console and update `HostName` in `~/.ssh/config`.
+If it stops working, the instance's public IP has probably changed. `ghostctl`
+keeps this entry current automatically — set `ssh_host: ghost-node` on the node
+in `~/.ghostctl/config.yaml` and every rotation rewrites `HostName` for you
+(`ghostctl status` shows the address it is on now). Otherwise, read the current
+IP from the Oracle Cloud console and edit `HostName` by hand.
 
 ---
 

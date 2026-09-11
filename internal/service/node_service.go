@@ -58,6 +58,26 @@ func (s *NodeService) ListAll(ctx context.Context) ([]models.Node, error) {
 	return s.nodeRepo.ListAll(ctx)
 }
 
+// UpdateAddress repoints a node at a new host or IP. Called after a public IP
+// rotation so subscriptions and generated VLESS URIs stay correct.
+func (s *NodeService) UpdateAddress(ctx context.Context, id uuid.UUID, address string) (*models.Node, error) {
+	if address == "" {
+		return nil, errors.New("address is required")
+	}
+	node, err := s.nodeRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("node not found")
+	}
+	if node.Address == address {
+		return node, nil
+	}
+	node.Address = address
+	if err := s.nodeRepo.Update(ctx, node); err != nil {
+		return nil, fmt.Errorf("updating node address: %w", err)
+	}
+	return node, nil
+}
+
 func (s *NodeService) Delete(ctx context.Context, id uuid.UUID) error {
 	if _, err := s.nodeRepo.FindByID(ctx, id); err != nil {
 		return errors.New("node not found")

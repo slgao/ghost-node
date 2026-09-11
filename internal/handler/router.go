@@ -99,6 +99,7 @@ func (r *Router) Setup() *gin.Engine {
 		admin.POST("/nodes",                     r.nodeH.CreateNode)
 		admin.DELETE("/nodes/:id",               r.nodeH.DeleteNode)
 		admin.POST("/nodes/:id/transports",      r.nodeH.AddTransportProfile)
+		admin.PUT("/nodes/:id/address",          r.nodeH.UpdateNodeAddress)
 
 		admin.GET("/users",                      r.adminH.ListUsers)
 		admin.PUT("/users/:id/status",           r.adminH.SetUserActive)

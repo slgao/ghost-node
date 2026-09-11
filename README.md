@@ -202,6 +202,99 @@ bash scripts/verify.sh
 
 ---
 
+## `ghostctl` — rotate a blocked IP
+
+When a node's address gets blocked, you do not need a new server. Releasing the
+instance's **ephemeral public IP** and drawing a new one from Oracle's regional
+pool restores service in well under a minute, costs nothing, and leaves the
+instance untouched — Xray listens on `0.0.0.0` and never learns the address
+changed, so there is nothing to restart.
+
+This matters most on Oracle Cloud Always Free, where creating a replacement VM
+is not a realistic response to a block: Always Free instances are pinned to your
+tenancy's home region, capacity is frequently unavailable, and the quota is
+fixed. Rotating the address is free, instant and unlimited.
+
+```bash
+make ghostctl                  # build bin/ghostctl
+cp configs/ghostctl.example.yaml ~/.ghostctl/config.yaml
+chmod 600 ~/.ghostctl/config.yaml
+
+./bin/ghostctl status          # what address is each node on?
+./bin/ghostctl rotate jp1      # draw a new address
+./bin/ghostctl rotate all -y
+```
+
+### What a rotation does
+
+1. Releases the instance's ephemeral public IP and allocates a new one.
+2. **Verifies** the new address with a TCP handshake. Oracle's pool contains
+   plenty of already-blocked addresses, so an unverified draw can swap a dead IP
+   for another dead IP. A failed draw is discarded and another is taken
+   (`rotate.attempts`, default 3).
+3. Records the released address — and any address that fails verification — in a
+   burned list, so neither it nor its `/24` neighbours are accepted again for
+   `rotate.burn_window` (default 30 days).
+4. Repoints the node's **Cloudflare A record** at the new address.
+5. `PUT`s the address to the control plane so the portal, subscriptions and
+   generated VLESS URIs stay correct.
+6. Rewrites `HostName` in `~/.ssh/config` so `ssh ghost-node-jp1` keeps working.
+
+Steps 4–6 are best-effort: the address has already changed by the time they run,
+so a failure is reported rather than aborting the rotation.
+
+> Run `ghostctl` **from inside the network you are trying to escape**. That is
+> what turns step 2 from a routing check into a useful signal — an address
+> null-routed by a censor times out there and nowhere else.
+
+### Point clients at a name, not an IP
+
+Give each node a DNS record (`dns_record` in the config) and use that as the
+node address instead of a raw IP. REALITY treats the connect address and the
+camouflage SNI as independent fields, so `n1.example.com` with
+`sni=www.apple.com` works exactly as before — but rotation then changes only the
+A record, and **no client config has to be re-imported**. Failover becomes DNS
+TTL (60s) plus a reconnect.
+
+Keep a raw-IP entry in your subscription too, so a client can fall through to it
+if the name is ever DNS-poisoned.
+
+### Commands
+
+| Command | What it does |
+|---------|-------------|
+| `ghostctl status [node]` | Instance state, current address, IP lifetime, reachability |
+| `ghostctl rotate <node\|all>` | Release the current address and draw a verified new one |
+| `ghostctl rotate jp1 --dry-run` | Show what would change, touch nothing |
+| `ghostctl nodes` | List configured nodes |
+| `ghostctl burned` | List addresses recorded as blocked |
+
+Useful flags: `--attempts N`, `--no-probe`, `--no-dns`, `--no-cp`, `--no-ssh`,
+`-y`, `--config PATH`.
+
+### Oracle credentials
+
+`ghostctl` reuses `~/.oci/config` — run `oci setup config` once, or set the
+fields inline in the ghostctl config. The API user needs a policy allowing it to
+swap addresses in the compartment holding your nodes:
+
+```
+Allow group ghost-rotators to manage public-ips in compartment <name>
+Allow group ghost-rotators to use private-ips in compartment <name>
+Allow group ghost-rotators to read instance-family in compartment <name>
+Allow group ghost-rotators to read virtual-network-family in compartment <name>
+```
+
+Two Oracle-specific cautions:
+
+- **Never terminate an Always Free Ampere A1 instance.** Capacity is scarce; you
+  may not get it back for weeks. Rotate the address instead — that is the whole
+  point of this tool.
+- Always Free instances can be **reclaimed when idle**. Upgrading the tenancy to
+  Pay As You Go stops reclamation while keeping Always Free resources free.
+
+---
+
 ## Quick Start — Personal VPN
 
 ### 0. Set up SSH access to your server
@@ -333,6 +426,12 @@ curl -X POST http://localhost:8080/api/v1/admin/nodes \
   -H "Content-Type: application/json" \
   -d '{"name":"JP-01","address":"1.2.3.4","region":"Japan","country":"JP"}'
 
+# Repoint a node at a new address (used by ghostctl after an IP rotation)
+curl -X PUT http://localhost:8080/api/v1/admin/nodes/NODE_ID/address \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"address":"5.6.7.8"}'
+
 # Add a VLESS+REALITY transport profile
 curl -X POST http://localhost:8080/api/v1/admin/nodes/NODE_ID/transports \
   -H "Authorization: Bearer ADMIN_TOKEN" \
@@ -375,7 +474,8 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 .
 ├── cmd/
 │   ├── control-plane/        # Main API server
-│   └── node-agent/           # Agent that runs on VPN servers
+│   ├── node-agent/           # Agent that runs on VPN servers
+│   └── ghostctl/             # CLI: rotate a blocked node's public IP
 ├── internal/
 │   ├── auth/                 # JWT + middleware
 │   ├── handler/              # HTTP handlers (gin)
@@ -384,6 +484,7 @@ See `docs/china-setup-guide.md` for full GFW bypass instructions and `docs/serve
 │   ├── models/               # DB models
 │   ├── transport/            # Xray/Hysteria2 process management
 │   ├── metrics/              # Prometheus instrumentation
+│   ├── provisioner/          # Cloud IP rotation (Oracle) + DNS + verification
 │   └── agent/                # Node agent logic
 ├── configs/                  # Xray + Hysteria2 server config templates
 ├── deployments/
