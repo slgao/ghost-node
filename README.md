@@ -109,18 +109,63 @@ Verify it's working: open `https://ip.sb` in your browser — it should show you
 
 ### `view-vpn-report.sh` — Traffic analysis report
 
-Runs on your Mac. SSHes into the server, analyzes Xray access logs, and opens an HTML report in your browser showing which apps used the VPN and how much.
+Runs on your own machine. SSHes into the server, analyses the Xray access log
+there, downloads the finished HTML report and opens it. The log itself never
+leaves the server.
 
 ```bash
-bash scripts/view-vpn-report.sh              # analyze last 24 hours
-bash scripts/view-vpn-report.sh --hours 48   # analyze last 48 hours
+bash scripts/view-vpn-report.sh                    # last 24 hours
+bash scripts/view-vpn-report.sh --hours 168        # last week
+bash scripts/view-vpn-report.sh --host ghost-node-jp2
+bash scripts/view-vpn-report.sh --json             # also fetch the raw analysis
 ```
 
-The HTML report includes:
-- Total connections and unique destinations
-- Doughnut chart — connections by app (YouTube, Google, Instagram, etc.)
-- Line chart — connections per hour
-- Full destination table with inferred app names
+**Which websites were visited.** Destinations are grouped by registrable domain
+(`bbc.co.uk`, not seven `*.bbci.co.uk` hostnames), classified into ~20
+categories, and split into two kinds:
+
+- **Websites visited** — somewhere a person actually went
+- **Background hosts** — CDN shards, telemetry, OS updates, certificate checks
+
+That split is the difference between *"you visited 12 websites"* and *"you
+contacted 380 hosts"*. Background traffic is hidden by default and one toggle
+away.
+
+Per site the report records connections and share, every hostname seen beneath
+it, ports, first and last seen, how many hours it was active, an hourly
+sparkline, and which client device caused it.
+
+The dashboard has five tabs:
+
+| Tab | What's in it |
+|-----|-------------|
+| **Overview** | Top websites, category doughnut, hourly activity, ports and outbound routing |
+| **Websites** | Searchable, sortable, filterable table — click any row for its hostnames, ports and clients |
+| **Timeline** | Connections per hour with hover detail, busiest hours, window and log metadata |
+| **Clients** | Per-device breakdown (inbound email tag, falling back to source address) plus Xray byte counters |
+| **Blocked** | Destinations Xray refused — private ranges, the `block` outbound, failed connections |
+
+Press `/` to jump straight to search. There is a light/dark toggle, and it works
+on a phone.
+
+**The report loads nothing from the internet** — no CDN, no web fonts, no
+favicon service. Charts are hand-rolled SVG. That keeps it readable offline, and
+means opening a report never discloses the browsing history it contains to a
+third party.
+
+To run it directly on the server instead:
+
+```bash
+sudo bash analyze-vpn-traffic.sh --hours 24 --out /tmp/vpn-report.html
+sudo bash analyze-vpn-traffic.sh --hours 168 --json /tmp/vpn-report.json --quiet
+```
+
+It reads rotated and gzipped logs too, so windows longer than one rotation still
+work. The JSON output holds the full analysis, ready to feed into automation.
+
+If a report comes back empty it says why — log missing, log empty, entries all
+older than the window, or a log format it could not parse — with the line counts
+and a sample line, rather than rendering a blank dashboard.
 
 ---
 
